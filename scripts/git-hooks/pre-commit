@@ -1,0 +1,50 @@
+#!/bin/bash
+# FreeLIMS pre-commit hook
+# Copy this file to .git/hooks/pre-commit to enable
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}Running FreeLIMS pre-commit checks...${NC}"
+
+# Check for large files (>1MB)
+large_files=$(git status --porcelain | grep -E '^(A|M)' | awk '{print $2}' | xargs -I{} find {} -type f -size +1M 2>/dev/null)
+
+if [ -n "$large_files" ]; then
+    echo -e "${RED}Error:${NC} Attempting to commit large files (>1MB):"
+    for file in $large_files; do
+        size=$(du -h "$file" | awk '{print $1}')
+        echo -e "${RED}  - $file ($size)${NC}"
+    done
+    echo -e "${YELLOW}Suggestion:${NC} Large files should not be stored in Git."
+    echo "Consider using Git LFS or external storage for large files."
+    exit 1
+fi
+
+# Check for common directories that should not be committed
+forbidden_patterns=(
+    "node_modules/"
+    "venv/"
+    "__pycache__/"
+    "*.pyc"
+    "build/"
+    "dist/"
+    "*.log"
+)
+
+for pattern in "${forbidden_patterns[@]}"; do
+    files=$(git status --porcelain | grep -E '^(A|M)' | awk '{print $2}' | grep -E "$pattern" 2>/dev/null)
+    
+    if [ -n "$files" ]; then
+        echo -e "${RED}Error:${NC} Attempting to commit excluded pattern: $pattern"
+        echo "$files" | sed "s/^/  - /"
+        echo -e "${YELLOW}Suggestion:${NC} These files should be excluded by .gitignore."
+        exit 1
+    fi
+done
+
+echo -e "${GREEN}All checks passed!${NC}"
+exit 0 

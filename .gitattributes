@@ -1,0 +1,43 @@
+# Set default behavior to automatically normalize line endings
+* text=auto
+
+# Source code
+*.py text
+*.js text
+*.jsx text
+*.ts text
+*.tsx text
+*.json text
+*.css text
+*.scss text
+*.html text
+*.md text
+*.yml text
+*.yaml text
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# Documentation
+*.txt text
+*.rst text
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.sqlite binary
+*.db binary
+
+# Exclude certain files or paths from being handled as text
+# This is useful for files that have line breaks, but Git thinks they are binary
+# *.pbxproj -text 
