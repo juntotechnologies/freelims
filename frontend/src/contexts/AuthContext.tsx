@@ -1,6 +1,9 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 
+// Get the API URL from environment variables
+const API_URL = process.env.REACT_APP_API_URL || '/api';
+
 // Define user type
 export interface User {
   id: number;
@@ -61,7 +64,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (token) {
         try {
           // Get current user info
-          const response = await axios.get<User>('/api/users/me');
+          const response = await axios.get<User>(`${API_URL}/users/me`);
           setUser(response.data);
         } catch (err) {
           // If token is invalid, clear it
@@ -83,14 +86,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       formData.append('username', username);
       formData.append('password', password);
 
-      const response = await axios.post<TokenResponse>('/api/token', formData);
+      const response = await axios.post<TokenResponse>(`${API_URL}/token`, formData);
       const { access_token } = response.data;
 
       // Save token to localStorage
       localStorage.setItem('token', access_token);
       
       // Get user info
-      const userResponse = await axios.get<User>('/api/users/me');
+      const userResponse = await axios.get<User>(`${API_URL}/users/me`);
       setUser(userResponse.data);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Login failed');
@@ -102,7 +105,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const register = async (email: string, username: string, fullName: string, password: string) => {
     try {
       setError(null);
-      await axios.post('/api/register', {
+      await axios.post(`${API_URL}/register`, {
         email,
         username,
         full_name: fullName,

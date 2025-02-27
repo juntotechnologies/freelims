@@ -11,6 +11,7 @@ import QualityControl from './pages/QualityControl';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
 import Inventory from './pages/Inventory';
+import LocationAuditLogs from './pages/LocationAuditLogs';
 import NotFound from './pages/NotFound';
 import { useAuth } from './contexts/AuthContext';
 
@@ -99,6 +100,10 @@ const routes: RouteObject[] = [
       {
         path: 'settings',
         element: <Settings />,
+      },
+      {
+        path: 'audit/locations',
+        element: <LocationAuditLogs />,
       },
     ],
   },

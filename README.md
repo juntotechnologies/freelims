@@ -19,6 +19,48 @@ FreeLIMS is an open-source Laboratory Information Management System designed for
 - **Database**: PostgreSQL (stored in a shared network location)
 - **Authentication**: JWT-based authentication
 
+## Main Entry Point
+
+FreeLIMS uses a single entry point script for all operations:
+
+```bash
+./scripts/freelims.sh <environment> <command> [options]
+```
+
+### Environments:
+- `dev` - Development environment
+- `prod` - Production environment
+- `db` - Database operations
+- `setup` - Setup operations
+- `all` - Operations on all environments
+
+### Common Commands:
+- `start` - Start an environment
+- `stop` - Stop an environment
+- `restart` - Restart an environment
+- `status` - Check the status of an environment
+- `start_both` - Start both production and development environments with consistent authentication
+
+### Examples:
+```bash
+# Start development environment
+./scripts/freelims.sh dev start
+
+# Start production environment
+./scripts/freelims.sh prod start
+
+# Start both environments simultaneously with consistent authentication
+./scripts/freelims.sh all start_both
+
+# Stop all environments
+./scripts/freelims.sh all stop
+
+# Check status of all environments
+./scripts/freelims.sh all status
+```
+
+For more detailed information about the script and its commands, see the [Scripts Documentation](scripts/README.md).
+
 ## Development Guidelines
 
 ### Repository Size Management
@@ -193,3 +235,44 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Environment Ports
+
+The FreeLIMS system uses different ports for development and production environments to allow both to run simultaneously:
+
+### Development Environment
+- Backend API: http://localhost:8000
+- Frontend UI: http://localhost:3001
+- API Documentation: http://localhost:8000/docs
+
+### Production Environment
+- Backend API: http://localhost:9000  
+- Frontend UI: http://localhost:3000 (also accessible at http://192.168.1.200:3000)
+- API Documentation: http://localhost:9000/docs
+
+This separation allows developers to work on new features in the development environment while maintaining a stable production version.
+
+## Running Both Environments Simultaneously
+
+FreeLIMS allows running both production and development environments simultaneously with consistent authentication:
+
+```bash
+./scripts/freelims.sh all start_both
+```
+
+This command will:
+1. Stop any existing environments
+2. Start the production environment (ports 9000 and 3000)
+3. Start the development environment (ports 8000 and 3001)
+4. Configure consistent authentication between environments
+5. Display access URLs for both environments
+
+To stop both environments:
+```bash
+./scripts/freelims.sh all stop
+```
+
+This feature is useful for:
+- Testing changes in development while comparing with production
+- Ensuring consistent user experience across environments
+- Training users on new features while maintaining access to the stable version

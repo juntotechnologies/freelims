@@ -142,6 +142,63 @@ class InventoryChange(InventoryChangeBase):
     class Config:
         orm_mode = True
 
+# Inventory Audit schemas
+class InventoryAuditBase(BaseModel):
+    inventory_item_id: int
+    field_name: str
+    old_value: str
+    new_value: str
+    action: str
+
+class InventoryAuditCreate(InventoryAuditBase):
+    pass
+
+class InventoryAudit(InventoryAuditBase):
+    id: int
+    user_id: int
+    timestamp: datetime
+
+    class Config:
+        orm_mode = True
+
+# Chemical Audit schemas
+class ChemicalAuditBase(BaseModel):
+    chemical_id: int
+    field_name: str
+    old_value: str
+    new_value: str
+    action: str
+
+class ChemicalAuditCreate(ChemicalAuditBase):
+    pass
+
+class ChemicalAudit(ChemicalAuditBase):
+    id: int
+    user_id: int
+    timestamp: datetime
+
+    class Config:
+        orm_mode = True
+
+# Location Audit schemas
+class LocationAuditBase(BaseModel):
+    location_id: int
+    field_name: str
+    old_value: str
+    new_value: str
+    action: str
+
+class LocationAuditCreate(LocationAuditBase):
+    pass
+
+class LocationAudit(LocationAuditBase):
+    id: int
+    user_id: int
+    timestamp: datetime
+
+    class Config:
+        orm_mode = True
+
 # Experiment schemas
 class ExperimentNoteBase(BaseModel):
     content: str
@@ -228,6 +285,52 @@ class SystemSettings(SystemSettingsBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     updated_by_id: int
+
+    class Config:
+        from_attributes = True
+
+# Test schemas
+class TestBase(BaseModel):
+    internal_id: str
+    test_id: str
+    sample_id: str
+    test_type: str
+    method: str
+    status: str
+    start_date: datetime
+    test_date: datetime
+    results: Optional[str] = None
+
+class TestCreate(TestBase):
+    analyst_ids: List[int] = []
+
+class TestUpdate(BaseModel):
+    internal_id: Optional[str] = None
+    test_id: Optional[str] = None
+    sample_id: Optional[str] = None
+    test_type: Optional[str] = None
+    method: Optional[str] = None
+    status: Optional[str] = None
+    start_date: Optional[datetime] = None
+    test_date: Optional[datetime] = None
+    completion_date: Optional[datetime] = None
+    results: Optional[str] = None
+    analyst_ids: Optional[List[int]] = None
+
+class AnalystBase(BaseModel):
+    id: int
+    username: str
+    full_name: str
+
+    class Config:
+        from_attributes = True
+
+class Test(TestBase):
+    id: int
+    completion_date: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    analysts: List[AnalystBase] = []
 
     class Config:
         from_attributes = True 

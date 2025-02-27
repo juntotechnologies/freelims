@@ -18,6 +18,14 @@ experiment_chemical = Table(
     Column('chemical_id', Integer, ForeignKey('chemicals.id'))
 )
 
+# Association table for test and analysts (many-to-many)
+test_analyst = Table(
+    'test_analyst',
+    Base.metadata,
+    Column('test_id', Integer, ForeignKey('tests.id')),
+    Column('user_id', Integer, ForeignKey('users.id'))
+)
+
 class User(Base):
     __tablename__ = "users"
 
@@ -34,7 +42,11 @@ class User(Base):
     # Relationships
     experiments = relationship("Experiment", back_populates="user")
     inventory_changes = relationship("InventoryChange", back_populates="user")
+    inventory_audits = relationship("InventoryAudit", back_populates="user")
     settings_updates = relationship("SystemSettings", back_populates="updated_by")
+    tests_as_analyst = relationship("Test", secondary=test_analyst, back_populates="analysts")
+    chemical_audits = relationship("ChemicalAudit", back_populates="user")
+    location_audits = relationship("LocationAudit", back_populates="user")
 
 class Chemical(Base):
     __tablename__ = "chemicals"
@@ -54,6 +66,7 @@ class Chemical(Base):
     inventory_items = relationship("InventoryItem", back_populates="chemical")
     categories = relationship("Category", secondary=chemical_category, back_populates="chemicals")
     experiments = relationship("Experiment", secondary=experiment_chemical, back_populates="chemicals")
+    audit_logs = relationship("ChemicalAudit", back_populates="chemical")
 
 class Category(Base):
     __tablename__ = "categories"
@@ -74,6 +87,7 @@ class Location(Base):
     
     # Relationships
     inventory_items = relationship("InventoryItem", back_populates="location")
+    audit_logs = relationship("LocationAudit", back_populates="location")
 
 class InventoryItem(Base):
     __tablename__ = "inventory_items"
@@ -92,6 +106,7 @@ class InventoryItem(Base):
     chemical = relationship("Chemical", back_populates="inventory_items")
     location = relationship("Location", back_populates="inventory_items")
     inventory_changes = relationship("InventoryChange", back_populates="inventory_item")
+    audit_logs = relationship("InventoryAudit", back_populates="inventory_item")
 
 class InventoryChange(Base):
     __tablename__ = "inventory_changes"
@@ -108,6 +123,22 @@ class InventoryChange(Base):
     inventory_item = relationship("InventoryItem", back_populates="inventory_changes")
     user = relationship("User", back_populates="inventory_changes")
     experiment = relationship("Experiment", back_populates="inventory_changes")
+
+class InventoryAudit(Base):
+    __tablename__ = "inventory_audits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    inventory_item_id = Column(Integer, ForeignKey("inventory_items.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    field_name = Column(String)  # The field that was changed
+    old_value = Column(String)   # Store as string, convert as needed
+    new_value = Column(String)   # Store as string, convert as needed
+    action = Column(String)      # "CREATE", "UPDATE", "DELETE"
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    inventory_item = relationship("InventoryItem", back_populates="audit_logs")
+    user = relationship("User", back_populates="inventory_audits")
 
 class Experiment(Base):
     __tablename__ = "experiments"
@@ -159,4 +190,57 @@ class SystemSettings(Base):
     updated_by_id = Column(Integer, ForeignKey("users.id"))
 
     # Relationships
-    updated_by = relationship("User", back_populates="settings_updates") 
+    updated_by = relationship("User", back_populates="settings_updates")
+
+class Test(Base):
+    __tablename__ = "tests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    internal_id = Column(String, unique=True, index=True)
+    test_id = Column(String, index=True)
+    sample_id = Column(String, index=True)
+    test_type = Column(String)  # HPLC, GC, Titration, IR, NMR
+    method = Column(String)
+    status = Column(String)  # Pending, In Progress, Completed, Failed
+    start_date = Column(DateTime(timezone=True))
+    test_date = Column(DateTime(timezone=True))
+    completion_date = Column(DateTime(timezone=True), nullable=True)
+    results = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    analysts = relationship("User", secondary=test_analyst, back_populates="tests_as_analyst")
+
+# New audit tables for chemicals and locations
+class ChemicalAudit(Base):
+    __tablename__ = "chemical_audits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    chemical_id = Column(Integer, ForeignKey("chemicals.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    field_name = Column(String)  # The field that was changed
+    old_value = Column(String)   # Store as string, convert as needed
+    new_value = Column(String)   # Store as string, convert as needed
+    action = Column(String)      # "CREATE", "UPDATE", "DELETE"
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    chemical = relationship("Chemical", back_populates="audit_logs")
+    user = relationship("User", back_populates="chemical_audits")
+
+class LocationAudit(Base):
+    __tablename__ = "location_audits"
+
+    id = Column(Integer, primary_key=True, index=True)
+    location_id = Column(Integer, ForeignKey("locations.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    field_name = Column(String)  # The field that was changed
+    old_value = Column(String)   # Store as string, convert as needed
+    new_value = Column(String)   # Store as string, convert as needed
+    action = Column(String)      # "CREATE", "UPDATE", "DELETE"
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    location = relationship("Location", back_populates="audit_logs")
+    user = relationship("User", back_populates="location_audits") 

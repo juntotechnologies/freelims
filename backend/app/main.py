@@ -17,6 +17,8 @@ from app.routers.inventory import router as inventory_router
 from app.routers.experiments import router as experiments_router
 from app.routers.users import router as users_router
 from app.routers.settings import router as settings_router
+from app.routers.tests import router as tests_router
+from app.routers.locations import router as locations_router
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -30,7 +32,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"],  # React frontend
+    allow_origins=["http://localhost:3000", "http://localhost:3002"],  # React frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,6 +45,8 @@ app.include_router(chemicals_router, prefix="/api/chemicals", tags=["Chemicals"]
 app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"])
 app.include_router(experiments_router, prefix="/api/experiments", tags=["Experiments"])
 app.include_router(settings_router, prefix="/api/settings", tags=["Settings"])
+app.include_router(tests_router)
+app.include_router(locations_router, prefix="/api/locations", tags=["Locations"])
 
 @app.get("/api/health")
 def health_check():

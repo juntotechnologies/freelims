@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -7,6 +7,7 @@ import {
   Card,
   CardContent,
   Divider,
+  CircularProgress,
 } from '@mui/material';
 import {
   Science as ScienceIcon,
@@ -15,16 +16,18 @@ import {
   People as PeopleIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 
 // Dashboard stat card component
 interface StatCardProps {
   title: string;
-  value: number;
+  value: number | string;
   icon: React.ReactNode;
   color: string;
+  loading?: boolean;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, loading = false }) => (
   <Card sx={{ height: '100%' }}>
     <CardContent>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -33,7 +36,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
             {title}
           </Typography>
           <Typography variant="h4" sx={{ mt: 1 }}>
-            {value}
+            {loading ? <CircularProgress size={24} /> : value}
           </Typography>
         </Box>
         <Box
@@ -61,35 +64,34 @@ interface ActivityItem {
   timestamp: string;
 }
 
-const recentActivities: ActivityItem[] = [
-  {
-    id: 1,
-    action: 'Added new sample',
-    user: 'John Doe',
-    timestamp: '2 hours ago',
-  },
-  {
-    id: 2,
-    action: 'Updated test result',
-    user: 'Jane Smith',
-    timestamp: '3 hours ago',
-  },
-  {
-    id: 3,
-    action: 'Created new inventory item',
-    user: 'Mike Johnson',
-    timestamp: '5 hours ago',
-  },
-  {
-    id: 4,
-    action: 'Completed test',
-    user: 'Sarah Williams',
-    timestamp: '1 day ago',
-  },
-];
-
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    samples: 0,
+    pendingTests: 0,
+    inventoryItems: 0,
+    activeUsers: 0
+  });
+  const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
+
+  useEffect(() => {
+    // In a real implementation, this would fetch actual data from the backend
+    setLoading(false);
+    
+    // This is a placeholder - in a real implementation, 
+    // you would fetch these values from API endpoints
+    // For now, we're setting them to 0 as requested
+    setStats({
+      samples: 0,
+      pendingTests: 0,
+      inventoryItems: 0,
+      activeUsers: 0
+    });
+    
+    // Setting an empty array for activities as requested
+    setRecentActivities([]);
+  }, []);
 
   return (
     <Box>
@@ -102,33 +104,37 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Samples"
-            value={256}
+            value={stats.samples}
             icon={<ScienceIcon />}
             color="#4caf50"
+            loading={loading}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Pending Tests"
-            value={42}
+            value={stats.pendingTests}
             icon={<AssignmentIcon />}
             color="#ff9800"
+            loading={loading}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Inventory Items"
-            value={189}
+            value={stats.inventoryItems}
             icon={<InventoryIcon />}
             color="#2196f3"
+            loading={loading}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Active Users"
-            value={18}
+            value={stats.activeUsers}
             icon={<PeopleIcon />}
             color="#9c27b0"
+            loading={loading}
           />
         </Grid>
       </Grid>
@@ -139,29 +145,35 @@ const Dashboard: React.FC = () => {
           Recent Activity
         </Typography>
         <Divider sx={{ mb: 2 }} />
-        {recentActivities.map((activity) => (
-          <Box
-            key={activity.id}
-            sx={{
-              py: 1.5,
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-              '&:last-child': {
-                borderBottom: 'none',
-              },
-            }}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body1">{activity.action}</Typography>
+        {recentActivities.length > 0 ? (
+          recentActivities.map((activity) => (
+            <Box
+              key={activity.id}
+              sx={{
+                py: 1.5,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                '&:last-child': {
+                  borderBottom: 'none',
+                },
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body1">{activity.action}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {activity.timestamp}
+                </Typography>
+              </Box>
               <Typography variant="body2" color="text.secondary">
-                {activity.timestamp}
+                by {activity.user}
               </Typography>
             </Box>
-            <Typography variant="body2" color="text.secondary">
-              by {activity.user}
-            </Typography>
-          </Box>
-        ))}
+          ))
+        ) : (
+          <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+            No recent activity to display
+          </Typography>
+        )}
       </Paper>
     </Box>
   );

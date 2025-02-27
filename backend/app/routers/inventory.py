@@ -4,8 +4,8 @@ from typing import List, Optional
 from sqlalchemy import or_
 
 from ..database import get_db
-from ..schemas import InventoryItem, InventoryItemCreate, InventoryItemUpdate, InventoryChange, InventoryChangeCreate
-from ..models import InventoryItem as InventoryItemModel, InventoryChange as InventoryChangeModel, Chemical as ChemicalModel, Location as LocationModel
+from ..schemas import InventoryItem, InventoryItemCreate, InventoryItemUpdate, InventoryChange, InventoryChangeCreate, InventoryAudit, InventoryAuditCreate
+from ..models import InventoryItem as InventoryItemModel, InventoryChange as InventoryChangeModel, Chemical as ChemicalModel, Location as LocationModel, InventoryAudit as InventoryAuditModel
 from ..auth import get_current_active_user, get_current_user
 
 router = APIRouter()
@@ -50,6 +50,17 @@ async def create_inventory_item(
         reason="Initial inventory creation"
     )
     db.add(inventory_change)
+    
+    # Create audit record for the item creation
+    audit_record = InventoryAuditModel(
+        inventory_item_id=db_item.id,
+        user_id=current_user.id,
+        field_name="all",
+        old_value="",
+        new_value=f"Chemical: {chemical.name}, Location: {location.name}, Quantity: {item.quantity}, Unit: {item.unit}, Batch: {item.batch_number}",
+        action="CREATE"
+    )
+    db.add(audit_record)
     db.commit()
     
     return db_item
@@ -117,25 +128,93 @@ async def update_inventory_item(
         raise HTTPException(status_code=404, detail="Inventory item not found")
     
     # Check if chemical exists if being updated
-    if item.chemical_id is not None:
+    if item.chemical_id is not None and item.chemical_id != db_item.chemical_id:
         chemical = db.query(ChemicalModel).filter(ChemicalModel.id == item.chemical_id).first()
         if not chemical:
             raise HTTPException(status_code=404, detail="Chemical not found")
+        
+        # Create audit record for chemical change
+        old_chemical = db.query(ChemicalModel).filter(ChemicalModel.id == db_item.chemical_id).first()
+        audit_record = InventoryAuditModel(
+            inventory_item_id=db_item.id,
+            user_id=current_user.id,
+            field_name="chemical_id",
+            old_value=f"{old_chemical.name} (ID: {db_item.chemical_id})" if old_chemical else str(db_item.chemical_id),
+            new_value=f"{chemical.name} (ID: {item.chemical_id})",
+            action="UPDATE"
+        )
+        db.add(audit_record)
+        
+        # Update the field
         db_item.chemical_id = item.chemical_id
     
     # Check if location exists if being updated
-    if item.location_id is not None:
+    if item.location_id is not None and item.location_id != db_item.location_id:
         location = db.query(LocationModel).filter(LocationModel.id == item.location_id).first()
         if not location:
             raise HTTPException(status_code=404, detail="Location not found")
+        
+        # Create audit record for location change
+        old_location = db.query(LocationModel).filter(LocationModel.id == db_item.location_id).first()
+        audit_record = InventoryAuditModel(
+            inventory_item_id=db_item.id,
+            user_id=current_user.id,
+            field_name="location_id",
+            old_value=f"{old_location.name} (ID: {db_item.location_id})" if old_location else str(db_item.location_id),
+            new_value=f"{location.name} (ID: {item.location_id})",
+            action="UPDATE"
+        )
+        db.add(audit_record)
+        
+        # Update the field
         db_item.location_id = item.location_id
     
-    # Update other fields
-    if item.batch_number is not None:
+    # Update batch number if changed
+    if item.batch_number is not None and item.batch_number != db_item.batch_number:
+        # Create audit record for batch number change
+        audit_record = InventoryAuditModel(
+            inventory_item_id=db_item.id,
+            user_id=current_user.id,
+            field_name="batch_number",
+            old_value=db_item.batch_number or "",
+            new_value=item.batch_number,
+            action="UPDATE"
+        )
+        db.add(audit_record)
+        
+        # Update the field
         db_item.batch_number = item.batch_number
-    if item.expiration_date is not None:
+    
+    # Update expiration date if changed
+    if item.expiration_date is not None and item.expiration_date != db_item.expiration_date:
+        # Create audit record for expiration date change
+        audit_record = InventoryAuditModel(
+            inventory_item_id=db_item.id,
+            user_id=current_user.id,
+            field_name="expiration_date",
+            old_value=str(db_item.expiration_date) if db_item.expiration_date else "",
+            new_value=str(item.expiration_date),
+            action="UPDATE"
+        )
+        db.add(audit_record)
+        
+        # Update the field
         db_item.expiration_date = item.expiration_date
-    if item.unit is not None:
+    
+    # Update unit if changed
+    if item.unit is not None and item.unit != db_item.unit:
+        # Create audit record for unit change
+        audit_record = InventoryAuditModel(
+            inventory_item_id=db_item.id,
+            user_id=current_user.id,
+            field_name="unit",
+            old_value=db_item.unit,
+            new_value=item.unit,
+            action="UPDATE"
+        )
+        db.add(audit_record)
+        
+        # Update the field
         db_item.unit = item.unit
     
     # Handle quantity change separately to create a change record
@@ -150,6 +229,17 @@ async def update_inventory_item(
             reason="Manual inventory update"
         )
         db.add(inventory_change)
+        
+        # Create audit record for quantity change
+        audit_record = InventoryAuditModel(
+            inventory_item_id=db_item.id,
+            user_id=current_user.id,
+            field_name="quantity",
+            old_value=str(db_item.quantity),
+            new_value=str(item.quantity),
+            action="UPDATE"
+        )
+        db.add(audit_record)
         
         # Update quantity
         db_item.quantity = item.quantity
@@ -178,6 +268,10 @@ async def create_inventory_change(
         if not experiment:
             raise HTTPException(status_code=404, detail="Experiment not found")
     
+    # Record old quantity before change
+    old_quantity = db_item.quantity
+    new_quantity = db_item.quantity + change.change_amount
+    
     # Create inventory change record
     db_change = InventoryChangeModel(
         inventory_item_id=change.inventory_item_id,
@@ -188,8 +282,19 @@ async def create_inventory_change(
     )
     db.add(db_change)
     
+    # Create audit record for the quantity change
+    audit_record = InventoryAuditModel(
+        inventory_item_id=db_item.id,
+        user_id=current_user.id,
+        field_name="quantity",
+        old_value=str(old_quantity),
+        new_value=str(new_quantity),
+        action="UPDATE"
+    )
+    db.add(audit_record)
+    
     # Update inventory quantity
-    db_item.quantity += change.change_amount
+    db_item.quantity = new_quantity
     
     # Check if quantity is negative
     if db_item.quantity < 0:
@@ -219,4 +324,31 @@ async def read_inventory_changes(
         query = query.filter(InventoryChangeModel.inventory_item_id == inventory_item_id)
     
     changes = query.order_by(InventoryChangeModel.timestamp.desc()).offset(skip).limit(limit).all()
-    return changes 
+    return changes
+
+@router.get("/audit", response_model=List[InventoryAudit])
+async def read_inventory_audit_logs(
+    skip: int = 0,
+    limit: int = 100,
+    inventory_item_id: Optional[int] = None,
+    field_name: Optional[str] = None,
+    action: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """
+    Get inventory audit logs with optional filtering.
+    """
+    query = db.query(InventoryAuditModel)
+    
+    if inventory_item_id:
+        query = query.filter(InventoryAuditModel.inventory_item_id == inventory_item_id)
+    
+    if field_name:
+        query = query.filter(InventoryAuditModel.field_name == field_name)
+    
+    if action:
+        query = query.filter(InventoryAuditModel.action == action)
+    
+    audit_logs = query.order_by(InventoryAuditModel.timestamp.desc()).offset(skip).limit(limit).all()
+    return audit_logs 

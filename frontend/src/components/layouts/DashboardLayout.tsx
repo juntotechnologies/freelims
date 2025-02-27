@@ -17,6 +17,7 @@ import {
   Button,
   useTheme,
   useMediaQuery,
+  Collapse,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -28,6 +29,10 @@ import {
   People as PeopleIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
+  History as HistoryIcon,
+  ExpandLess,
+  ExpandMore,
+  LocationOn as LocationIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -55,6 +60,7 @@ const DashboardLayout: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [auditLogsOpen, setAuditLogsOpen] = useState(false);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -70,6 +76,10 @@ const DashboardLayout: React.FC = () => {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const handleAuditLogsClick = () => {
+    setAuditLogsOpen(!auditLogsOpen);
   };
 
   const drawer = (
@@ -92,6 +102,28 @@ const DashboardLayout: React.FC = () => {
       </List>
       <Divider />
       <List>
+        <ListItem disablePadding>
+          <ListItemButton onClick={handleAuditLogsClick}>
+            <ListItemIcon>
+              <HistoryIcon />
+            </ListItemIcon>
+            <ListItemText primary="Audit Logs" />
+            {auditLogsOpen ? <ExpandLess /> : <ExpandMore />}
+          </ListItemButton>
+        </ListItem>
+        <Collapse in={auditLogsOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            <ListItemButton 
+              sx={{ pl: 4 }}
+              onClick={() => handleNavigation('/audit/locations')}
+            >
+              <ListItemIcon>
+                <LocationIcon />
+              </ListItemIcon>
+              <ListItemText primary="Locations" />
+            </ListItemButton>
+          </List>
+        </Collapse>
         <ListItem disablePadding>
           <ListItemButton onClick={handleLogout}>
             <ListItemIcon>
