@@ -1,5 +1,7 @@
 # FreeLIMS
 
+![FreeLIMS Screenshot](docs/images/freelims.png)
+
 FreeLIMS is an open-source Laboratory Information Management System designed for small specialty chemical companies. It helps manage laboratory data, inventory, and workflows in a multi-user environment.
 
 ## Features
