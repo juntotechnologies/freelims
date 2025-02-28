@@ -36,17 +36,27 @@ ensure_port_available() {
     
     if [ ! -z "$PIDS" ]; then
         echo "⚠️ Port $PORT is already in use by PID(s): $PIDS"
-        echo "🔫 Automatically killing competing process(es)..."
-        kill -9 $PIDS 2>/dev/null
-        sleep 1
         
-        # Verify port is now available
-        PIDS=$(lsof -ti :$PORT)
-        if [ ! -z "$PIDS" ]; then
-            echo "❌ Failed to free up port $PORT. Processes still running: $PIDS"
-            exit 1
+        # Ask for confirmation with Y/n prompt
+        read -p "Do you want to kill the process(es) and continue? (Y/n): " response
+        response=${response:-Y}  # Default to Y if enter is pressed
+        
+        if [[ "$response" =~ ^[Yy]$ ]]; then
+            echo "🔫 Killing competing process(es)..."
+            kill -9 $PIDS 2>/dev/null
+            sleep 1
+            
+            # Verify port is now available
+            PIDS=$(lsof -ti :$PORT)
+            if [ ! -z "$PIDS" ]; then
+                echo "❌ Failed to free up port $PORT. Processes still running: $PIDS"
+                exit 1
+            else
+                echo "✅ Port $PORT is now available"
+            fi
         else
-            echo "✅ Port $PORT is now available"
+            echo "❌ User chose not to kill process(es). Exiting."
+            exit 1
         fi
     else
         echo "✅ Port $PORT is available"

@@ -31,14 +31,16 @@ kill_process_on_port() {
   PID=$(lsof -t -i :"$1")
   if [ -n "$PID" ]; then
     kill -9 $PID
+    echo "Process with PID $PID on port $1 terminated."
   fi
 }
 
 # Check and kill backend processes if needed
 if is_port_in_use 8001; then
   echo "Port 8001 is already in use."
-  read -p "Do you want to kill the process and continue? (y/n): " kill_backend
-  if [ "$kill_backend" = "y" ]; then
+  read -p "Do you want to kill the process and continue? (Y/n): " kill_backend
+  kill_backend=${kill_backend:-Y}  # Default to Y if enter is pressed
+  if [[ "$kill_backend" =~ ^[Yy]$ ]]; then
     kill_process_on_port 8001
   else
     echo "Exiting."
@@ -49,8 +51,9 @@ fi
 # Check and kill frontend processes if needed
 if is_port_in_use 3001; then
   echo "Port 3001 is already in use."
-  read -p "Do you want to kill the process and continue? (y/n): " kill_frontend
-  if [ "$kill_frontend" = "y" ]; then
+  read -p "Do you want to kill the process and continue? (Y/n): " kill_frontend
+  kill_frontend=${kill_frontend:-Y}  # Default to Y if enter is pressed
+  if [[ "$kill_frontend" =~ ^[Yy]$ ]]; then
     kill_process_on_port 3001
   else
     echo "Exiting."

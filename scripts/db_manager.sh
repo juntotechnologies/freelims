@@ -66,7 +66,7 @@ log_message() {
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
     print_message "${type}" "${message}"
-    echo "${timestamp} [${type^^}] ${message}" >> "${LOG_FILE}"
+    echo "${timestamp} [$(echo ${type} | tr '[:lower:]' '[:upper:]')] ${message}" >> "${LOG_FILE}"
 }
 
 # Show usage information
@@ -308,7 +308,7 @@ restore_database() {
             log_message "error" "Failed to drop existing database"
             return 1
         }
-    }
+    fi
     
     # Create an empty database
     log_message "info" "Creating new database '${DB_NAME}'..."

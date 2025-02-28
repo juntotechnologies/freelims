@@ -156,15 +156,26 @@ get_pid_for_port() {
     fi
 }
 
-# Kill process using a specific port
+# Kill process using a specific port with user confirmation
 kill_process_on_port() {
     local port="$1"
     local pid=$(get_pid_for_port "${port}")
     
     if [[ -n "${pid}" ]]; then
-        log_info "Terminating process with PID ${pid} on port ${port}"
-        kill "${pid}" 2>/dev/null || kill -9 "${pid}" 2>/dev/null
-        return $?
+        log_info "Process with PID ${pid} found using port ${port}"
+        
+        # Ask for confirmation with Y/n prompt
+        read -p "Do you want to kill the process on port ${port}? (Y/n): " response
+        response=${response:-Y}  # Default to Y if enter is pressed
+        
+        if [[ "${response}" =~ ^[Yy]$ ]]; then
+            log_info "Terminating process with PID ${pid} on port ${port}"
+            kill "${pid}" 2>/dev/null || kill -9 "${pid}" 2>/dev/null
+            return $?
+        else
+            log_warning "User chose not to kill process on port ${port}"
+            return 2  # Special return code for user rejection
+        fi
     else
         log_warning "No process found on port ${port}"
         return 1
