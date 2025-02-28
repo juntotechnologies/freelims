@@ -10,6 +10,7 @@ This guide provides comprehensive instructions for managing the FreeLIMS databas
 - [Restore](#restore)
 - [Database Maintenance](#database-maintenance)
 - [Troubleshooting](#troubleshooting)
+- [Data Separation and Employee Access](#data-separation-and-employee-access)
 
 ## Overview
 
@@ -83,8 +84,18 @@ The backup utility offers several options:
 
 ### Backup Locations
 
-Backups are stored in the `backups/database/` directory in the repository root. Each backup includes:
+Backups are stored in dedicated shared drives for better data management and security:
 
+- **Development backups**: `/Users/Shared/ADrive/freelims_backups`
+- **Production backups**: `/Users/Shared/SDrive/freelims_backups`
+
+This ensures that:
+1. Backups are kept separate from the code repository
+2. Development data (which may contain test data) is stored in ADrive
+3. Production data (which contains actual business data) is stored in SDrive
+4. Backups are not accidentally committed to Git
+
+Each backup includes:
 - `.dump` file: PostgreSQL database dump that can be restored
 - `.meta` file: Contains metadata about the backup (timestamp, database name, etc.)
 
@@ -197,6 +208,60 @@ To initialize a fresh database with default data:
 ```
 
 This creates the default admin user (username: admin, password: password) and sample data.
+
+## Data Separation and Employee Access
+
+### Development vs. Production Data
+
+FreeLIMS maintains strict separation between development and production data:
+
+1. **Development Environment**
+   - Uses the `freelims_dev` database
+   - Data is stored in `/Users/Shared/ADrive/freelims_db_dev`
+   - Backups are stored in `/Users/Shared/ADrive/freelims_backups`
+   - Accessible only to admin users with specific permissions
+   - Contains test data and can be reset safely
+   
+2. **Production Environment**
+   - Uses the `freelims_prod` database
+   - Data is stored in `/Users/Shared/SDrive/freelims_production`
+   - Backups are stored in `/Users/Shared/SDrive/freelims_backups`
+   - Accessible to all employees with proper credentials
+   - Contains actual business data that must be preserved
+
+### Employee Data Access
+
+When employees run FreeLIMS on their computers:
+
+1. **Regular Employees**
+   - Should connect to the production environment
+   - Their data is stored in the SDrive location
+   - Their changes affect the central production database
+   - They cannot modify the database schema
+
+2. **Admin/Developer Users**
+   - Have access to both environments
+   - Can switch between development and production
+   - Are responsible for testing changes in development before deploying to production
+   - Must ensure data integrity and privacy
+
+### Setting Up Employee Access
+
+To configure a new employee's access:
+
+1. Ensure they have access to the SDrive shared folder
+2. Install FreeLIMS on their computer
+3. Configure their environment to use the production database:
+   ```bash
+   # In the FreeLIMS repository
+   cp backend/.env.production backend/.env
+   ```
+4. Run the application using:
+   ```bash
+   ./scripts/freelims.sh prod start
+   ```
+
+This ensures all employees work with the same central database while maintaining proper data separation between environments.
 
 ## Troubleshooting
 
