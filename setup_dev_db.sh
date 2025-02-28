@@ -32,8 +32,8 @@ fi
 
 # Create the development database
 echo "Creating development database 'freelims_dev'..."
-psql -U postgres -c "DROP DATABASE IF EXISTS freelims_dev;"
-psql -U postgres -c "CREATE DATABASE freelims_dev;"
+psql -c "DROP DATABASE IF EXISTS freelims_dev;"
+psql -c "CREATE DATABASE freelims_dev;"
 
 # Copy development environment settings
 cp .env.development .env

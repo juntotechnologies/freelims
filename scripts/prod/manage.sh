@@ -14,9 +14,9 @@ source "${SCRIPT_DIR}/../common/utils.sh"
 LOG_FILE="prod_environment.log"
 
 # Configuration
-BACKEND_PORT=8000
-FRONTEND_PORT=3000
-PROD_BACKEND_PORT=9000
+BACKEND_PORT=8001
+FRONTEND_PORT=3001
+PROD_BACKEND_PORT=8001
 DB_CONFIG_FILE="${BACKEND_DIR}/app/database.py"
 
 # Print usage information
