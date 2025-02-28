@@ -1,5 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 import uvicorn
 import os
@@ -19,6 +20,7 @@ from app.routers.users import router as users_router
 from app.routers.settings import router as settings_router
 from app.routers.tests import router as tests_router
 from app.routers.locations import router as locations_router
+from app.websockets import setup_socketio  # Import WebSocket setup function
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -32,7 +34,13 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"],  # React frontend
+    allow_origins=[
+        "http://localhost:3000", 
+        "http://localhost:3001", 
+        "http://localhost:3002",
+        "http://192.168.1.200:3001",
+        "http://192.168.1.200:3002"
+    ],  # React frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,6 +55,14 @@ app.include_router(experiments_router, prefix="/api/experiments", tags=["Experim
 app.include_router(settings_router, prefix="/api/settings", tags=["Settings"])
 app.include_router(tests_router)
 app.include_router(locations_router, prefix="/api/locations", tags=["Locations"])
+
+# Setup WebSockets
+setup_socketio(app)
+
+@app.get("/")
+async def root():
+    """Redirect to the frontend application"""
+    return RedirectResponse(url="http://localhost:3001")
 
 @app.get("/api/health")
 def health_check():

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# FreeLIMS Development Environment Startup Script
-# This script runs the FreeLIMS application in development mode
+# FreeLIMS Production Environment Startup Script
+# This script runs the FreeLIMS application in production mode
 #
 # Port configuration:
 # - Development: Backend=8001, Frontend=3001
@@ -9,16 +9,16 @@
 
 # Display header
 echo "===================================="
-echo "FreeLIMS Development Environment"
+echo "FreeLIMS Production Environment"
 echo "===================================="
 echo "Started at: $(date)"
 echo ""
 
 # Define paths
-DEV_PATH="$(pwd)"
-BACKEND_PATH="$DEV_PATH/backend"
-FRONTEND_PATH="$DEV_PATH/frontend"
-LOG_PATH="$DEV_PATH/logs"
+PROD_PATH="$(pwd)"
+BACKEND_PATH="$PROD_PATH/backend"
+FRONTEND_PATH="$PROD_PATH/frontend"
+LOG_PATH="$PROD_PATH/logs"
 
 # Create log directory if it doesn't exist
 mkdir -p "$LOG_PATH"
@@ -42,18 +42,18 @@ kill_process_on_port() {
 }
 
 # Check and kill backend processes if needed
-if is_port_in_use 8001; then
-  echo "Port 8001 is already in use. Terminating the process..."
-  kill_process_on_port 8001
+if is_port_in_use 8002; then
+  echo "Port 8002 is already in use. Terminating the process..."
+  kill_process_on_port 8002
 fi
 
 # Check and kill frontend processes if needed
-if is_port_in_use 3001; then
-  echo "Port 3001 is already in use. Terminating the process..."
-  kill_process_on_port 3001
+if is_port_in_use 3002; then
+  echo "Port 3002 is already in use. Terminating the process..."
+  kill_process_on_port 3002
 fi
 
-# Setup development environment for backend
+# Setup production environment for backend
 echo "Setting up backend environment..."
 cd "$BACKEND_PATH"
 
@@ -67,12 +67,12 @@ else
   pip install -r requirements.txt
 fi
 
-# Copy development environment file
-cp .env.development .env
+# Copy production environment file
+cp .env.production .env
 
 # Start backend server in the background
 echo "Starting backend server..."
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001 > "$LOG_PATH/backend.log" 2>&1 &
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8002 > "$LOG_PATH/backend_prod.log" 2>&1 &
 BACKEND_PID=$!
 echo "Backend server started with PID: $BACKEND_PID"
 
@@ -80,10 +80,10 @@ echo "Backend server started with PID: $BACKEND_PID"
 echo "Setting up frontend environment..."
 cd "$FRONTEND_PATH"
 
-# Create or update frontend development environment
-cat > .env.development.local << EOF
-REACT_APP_API_URL=http://localhost:8001/api
-PORT=3001
+# Create or update frontend production environment
+cat > .env.production.local << EOF
+REACT_APP_API_URL=http://localhost:8002/api
+PORT=3002
 EOF
 
 # Install dependencies if node_modules doesn't exist
@@ -92,20 +92,20 @@ if [ ! -d "node_modules" ]; then
   npm install
 fi
 
-# Start frontend server in the background
+# Start frontend production server in the background
 echo "Starting frontend server..."
-BROWSER=none npm start > "$LOG_PATH/frontend.log" 2>&1 &
+BROWSER=none npm run build && npx serve -s build -l 3002 > "$LOG_PATH/frontend_prod.log" 2>&1 &
 FRONTEND_PID=$!
 echo "Frontend server started with PID: $FRONTEND_PID"
 
 # Return to the root directory
-cd "$DEV_PATH"
+cd "$PROD_PATH"
 
 echo ""
 echo "===================================="
-echo "Development environment is running!"
-echo "Backend server: http://localhost:8001"
-echo "Frontend client: http://localhost:3001"
+echo "Production environment is running!"
+echo "Backend server: http://localhost:8002"
+echo "Frontend client: http://localhost:3002"
 echo "===================================="
 echo ""
 
@@ -116,7 +116,7 @@ if [[ "$0" != *"freelims_service.sh"* ]]; then
   # Function to cleanup on exit
   cleanup() {
     echo ""
-    echo "Shutting down development environment..."
+    echo "Shutting down production environment..."
     kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
     echo "Done."
     exit 0

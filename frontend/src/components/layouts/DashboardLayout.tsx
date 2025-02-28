@@ -54,7 +54,7 @@ const navItems: NavItem[] = [
   { text: 'Settings', path: '/settings', icon: <SettingsIcon /> },
 ];
 
-const DashboardLayout: React.FC = () => {
+const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const theme = useTheme();
@@ -204,16 +204,9 @@ const DashboardLayout: React.FC = () => {
           {drawer}
         </Drawer>
       </Box>
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          mt: '64px', // AppBar height
-        }}
-      >
-        <Outlet />
+      <Box component="main" sx={{ flexGrow: 1, p: 3, width: { md: `calc(100% - ${drawerWidth}px)` } }}>
+        <Toolbar />
+        {children || <Outlet />}
       </Box>
     </Box>
   );

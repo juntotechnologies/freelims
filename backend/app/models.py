@@ -2,6 +2,20 @@ from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
+from datetime import datetime
+
+# Base model mixin with as_dict implementation
+class ModelMixin:
+    def as_dict(self):
+        """Convert model instance to dictionary for JSON serialization"""
+        result = {}
+        for column in self.__table__.columns:
+            value = getattr(self, column.name)
+            # Convert datetime objects to ISO format strings for JSON serialization
+            if isinstance(value, datetime):
+                value = value.isoformat()
+            result[column.name] = value
+        return result
 
 # Association tables for many-to-many relationships
 chemical_category = Table(
@@ -26,7 +40,7 @@ test_analyst = Table(
     Column('user_id', Integer, ForeignKey('users.id'))
 )
 
-class User(Base):
+class User(Base, ModelMixin):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -48,7 +62,7 @@ class User(Base):
     chemical_audits = relationship("ChemicalAudit", back_populates="user")
     location_audits = relationship("LocationAudit", back_populates="user")
 
-class Chemical(Base):
+class Chemical(Base, ModelMixin):
     __tablename__ = "chemicals"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -68,7 +82,7 @@ class Chemical(Base):
     experiments = relationship("Experiment", secondary=experiment_chemical, back_populates="chemicals")
     audit_logs = relationship("ChemicalAudit", back_populates="chemical")
 
-class Category(Base):
+class Category(Base, ModelMixin):
     __tablename__ = "categories"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -78,7 +92,7 @@ class Category(Base):
     # Relationships
     chemicals = relationship("Chemical", secondary=chemical_category, back_populates="categories")
 
-class Location(Base):
+class Location(Base, ModelMixin):
     __tablename__ = "locations"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -89,7 +103,7 @@ class Location(Base):
     inventory_items = relationship("InventoryItem", back_populates="location")
     audit_logs = relationship("LocationAudit", back_populates="location")
 
-class InventoryItem(Base):
+class InventoryItem(Base, ModelMixin):
     __tablename__ = "inventory_items"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -108,7 +122,7 @@ class InventoryItem(Base):
     inventory_changes = relationship("InventoryChange", back_populates="inventory_item")
     audit_logs = relationship("InventoryAudit", back_populates="inventory_item")
 
-class InventoryChange(Base):
+class InventoryChange(Base, ModelMixin):
     __tablename__ = "inventory_changes"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -124,7 +138,7 @@ class InventoryChange(Base):
     user = relationship("User", back_populates="inventory_changes")
     experiment = relationship("Experiment", back_populates="inventory_changes")
 
-class InventoryAudit(Base):
+class InventoryAudit(Base, ModelMixin):
     __tablename__ = "inventory_audits"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -140,7 +154,7 @@ class InventoryAudit(Base):
     inventory_item = relationship("InventoryItem", back_populates="audit_logs")
     user = relationship("User", back_populates="inventory_audits")
 
-class Experiment(Base):
+class Experiment(Base, ModelMixin):
     __tablename__ = "experiments"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -161,7 +175,7 @@ class Experiment(Base):
     inventory_changes = relationship("InventoryChange", back_populates="experiment")
     notes = relationship("ExperimentNote", back_populates="experiment")
 
-class ExperimentNote(Base):
+class ExperimentNote(Base, ModelMixin):
     __tablename__ = "experiment_notes"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -172,7 +186,7 @@ class ExperimentNote(Base):
     # Relationships
     experiment = relationship("Experiment", back_populates="notes")
 
-class SystemSettings(Base):
+class SystemSettings(Base, ModelMixin):
     __tablename__ = "system_settings"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -192,7 +206,7 @@ class SystemSettings(Base):
     # Relationships
     updated_by = relationship("User", back_populates="settings_updates")
 
-class Test(Base):
+class Test(Base, ModelMixin):
     __tablename__ = "tests"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -213,7 +227,7 @@ class Test(Base):
     analysts = relationship("User", secondary=test_analyst, back_populates="tests_as_analyst")
 
 # New audit tables for chemicals and locations
-class ChemicalAudit(Base):
+class ChemicalAudit(Base, ModelMixin):
     __tablename__ = "chemical_audits"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -229,7 +243,7 @@ class ChemicalAudit(Base):
     chemical = relationship("Chemical", back_populates="audit_logs")
     user = relationship("User", back_populates="chemical_audits")
 
-class LocationAudit(Base):
+class LocationAudit(Base, ModelMixin):
     __tablename__ = "location_audits"
 
     id = Column(Integer, primary_key=True, index=True)

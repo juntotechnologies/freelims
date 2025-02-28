@@ -278,3 +278,29 @@ This feature is useful for:
 - Testing changes in development while comparing with production
 - Ensuring consistent user experience across environments
 - Training users on new features while maintaining access to the stable version
+
+## Persistent Service
+
+FreeLIMS can be set up to run as a persistent service on macOS, ensuring both development and production environments remain active across system reboots and user logouts.
+
+### Features of the Persistent Service
+
+- Automatic startup of both development and production environments at system boot
+- Continued operation even when users log out
+- Automatic recovery if any component crashes
+- Comprehensive logging for troubleshooting
+
+### Service Management
+
+```bash
+# Install the service (requires administrator privileges)
+sudo scripts/install_service.sh
+
+# Check service status
+scripts/check_service.sh
+
+# Uninstall the service
+sudo scripts/uninstall_service.sh
+```
+
+For detailed information about the persistent service, see the [Service Documentation](scripts/SERVICE_README.md).

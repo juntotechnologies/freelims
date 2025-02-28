@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.freelims.service</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/shaun/Documents/GitHub/projects/freelims/scripts/freelims_service.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/shaun/Documents/GitHub/projects/freelims/logs/freelims_service_stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/shaun/Documents/GitHub/projects/freelims/logs/freelims_service_stderr.log</string>
+    <key>UserName</key>
+    <string>shaun</string>
+    <key>GroupName</key>
+    <string>staff</string>
+    <key>WorkingDirectory</key>
+    <string>/Users/shaun/Documents/GitHub/projects/freelims</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin</string>
+        <key>HOME</key>
+        <string>/Users/shaun</string>
+    </dict>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+    <key>Nice</key>
+    <integer>0</integer>
+</dict>
+</plist> 

@@ -31,6 +31,8 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import api from '../services/api';
 import axios from 'axios';
+import { useSocket } from '../contexts/SocketContext';
+import { useQuery, useQueryClient } from 'react-query';
 
 interface InventoryItem {
   id: number;
@@ -82,6 +84,8 @@ const Inventory: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [apiError, setApiError] = useState<boolean>(false);
+  const { connected, subscribeToResource } = useSocket();
+  const queryClient = useQueryClient();
 
   const [newItem, setNewItem] = useState({
     chemical_id: '',
@@ -155,7 +159,16 @@ const Inventory: React.FC = () => {
     { field: 'quantity', headerName: 'Quantity', width: 100 },
     { field: 'unit', headerName: 'Unit', width: 100 },
     { field: 'batch_number', headerName: 'Batch/Lot #', width: 130 },
-    { field: 'expiration_date', headerName: 'Expiration Date', width: 200 },
+    { 
+      field: 'expiration_date', 
+      headerName: 'Expiration Date', 
+      width: 200,
+      valueFormatter: (params) => {
+        if (!params.value) return '';
+        // Format date as yyyy-mm-dd by taking only the part before 'T'
+        return params.value.toString().split('T')[0];
+      } 
+    },
     {
       field: 'actions',
       headerName: 'Actions',
@@ -184,10 +197,110 @@ const Inventory: React.FC = () => {
   ];
 
   useEffect(() => {
-    fetchInventory();
-    fetchChemicals();
-    fetchLocations();
+    // Load data on component mount
+    refreshData();
   }, []);
+
+  // Subscribe to inventory updates when socket is connected
+  useEffect(() => {
+    if (connected) {
+      console.log('Subscribing to inventory updates');
+      subscribeToResource('inventory');
+    }
+  }, [connected, subscribeToResource]);
+
+  // Use React Query for inventory data
+  const { isLoading: inventoryLoading, error: inventoryError, data: inventoryData } = useQuery(
+    'inventory',
+    async () => {
+      const hasToken = await ensureAuthToken();
+      if (!hasToken) {
+        throw new Error('Authentication failed. Cannot fetch inventory.');
+      }
+      
+      console.log('Fetching inventory with auth token:', localStorage.getItem('token'));
+      const apiUrl = process.env.REACT_APP_API_URL || '/api';
+      console.log('Using API URL for inventory:', apiUrl + '/inventory/items');
+      
+      const response = await api.get<InventoryItem[]>('/inventory/items');
+      console.log('Inventory response:', response);
+      return response.data;
+    },
+    {
+      onError: (err: any) => {
+        console.error('Error fetching inventory:', err);
+        setError('Failed to fetch inventory items');
+      },
+      staleTime: 30000, // Data is fresh for 30 seconds
+      refetchOnWindowFocus: false
+    }
+  );
+
+  // Use React Query for chemicals data
+  const { isLoading: chemicalsLoading, error: chemicalsError, data: chemicalsData } = useQuery(
+    'chemicals',
+    async () => {
+      const hasToken = await ensureAuthToken();
+      if (!hasToken) {
+        throw new Error('Authentication failed. Cannot fetch chemicals.');
+      }
+      
+      console.log('Fetching chemicals with auth token:', localStorage.getItem('token'));
+      const apiUrl = process.env.REACT_APP_API_URL || '/api';
+      console.log('Using API URL for chemicals:', apiUrl + '/chemicals/');
+      
+      const response = await api.get<Chemical[]>('/chemicals/');
+      console.log('Chemicals response:', response);
+      return response.data;
+    },
+    {
+      staleTime: 60000, // Data is fresh for 60 seconds
+      refetchOnWindowFocus: false
+    }
+  );
+
+  // Use React Query for locations data
+  const { isLoading: locationsLoading, error: locationsError, data: locationsData } = useQuery(
+    'locations',
+    async () => {
+      const hasToken = await ensureAuthToken();
+      if (!hasToken) {
+        throw new Error('Authentication failed. Cannot fetch locations.');
+      }
+      
+      console.log('Fetching locations with auth token:', localStorage.getItem('token'));
+      const apiUrl = process.env.REACT_APP_API_URL || '/api';
+      console.log('Using API URL for locations:', apiUrl + '/locations/');
+      
+      const response = await api.get<Location[]>('/locations/');
+      console.log('Locations response:', response);
+      return response.data;
+    },
+    {
+      staleTime: 60000, // Data is fresh for 60 seconds
+      refetchOnWindowFocus: false
+    }
+  );
+
+  // Update state when query data changes
+  useEffect(() => {
+    if (inventoryData) {
+      setItems(inventoryData);
+      setLoading(false);
+    }
+  }, [inventoryData]);
+
+  useEffect(() => {
+    if (chemicalsData) {
+      setChemicals(chemicalsData);
+    }
+  }, [chemicalsData]);
+
+  useEffect(() => {
+    if (locationsData) {
+      setLocations(locationsData);
+    }
+  }, [locationsData]);
 
   // Function to ensure we have an auth token
   const ensureAuthToken = async () => {
@@ -228,93 +341,6 @@ const Inventory: React.FC = () => {
     }
     console.log('Using existing auth token from localStorage');
     return true;
-  };
-
-  const fetchInventory = async () => {
-    // Ensure we have an auth token before making the request
-    const hasToken = await ensureAuthToken();
-    if (!hasToken) {
-      console.error('Authentication failed. Cannot fetch inventory.');
-      setError('Authentication failed. Cannot fetch inventory.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      console.log('Fetching inventory with auth token:', localStorage.getItem('token'));
-      const apiUrl = process.env.REACT_APP_API_URL || '/api';
-      console.log('Using API URL for inventory:', apiUrl + '/inventory/items');
-      
-      const response = await api.get<InventoryItem[]>('/inventory/items');
-      console.log('Inventory response:', response);
-      setItems(response.data);
-      setLoading(false);
-    } catch (err: any) {
-      console.error('Error fetching inventory:', err);
-      // If we have an axios error with a response, log the details
-      if (err && err.response) {
-        console.error('Response status:', err.response.status);
-        console.error('Response data:', err.response.data);
-      }
-      setError('Failed to fetch inventory items');
-      setLoading(false);
-    }
-  };
-
-  const fetchChemicals = async () => {
-    // Ensure we have an auth token before making the request
-    const hasToken = await ensureAuthToken();
-    if (!hasToken) {
-      console.error('Authentication failed. Cannot fetch chemicals.');
-      setError('Authentication failed. Cannot fetch chemicals.');
-      return;
-    }
-    
-    try {
-      console.log('Fetching chemicals with auth token:', localStorage.getItem('token'));
-      const apiUrl = process.env.REACT_APP_API_URL || '/api';
-      console.log('Using API URL for chemicals:', apiUrl + '/chemicals/');
-      
-      const response = await api.get<Chemical[]>('/chemicals/');
-      console.log('Chemicals response:', response);
-      setChemicals(response.data);
-    } catch (err: any) {
-      console.error('Error fetching chemicals:', err);
-      // If we have an axios error with a response, log the details
-      if (err && err.response) {
-        console.error('Response status:', err.response.status);
-        console.error('Response data:', err.response.data);
-      }
-      setError('Failed to fetch chemicals');
-    }
-  };
-
-  const fetchLocations = async () => {
-    // Ensure we have an auth token before making the request
-    const hasToken = await ensureAuthToken();
-    if (!hasToken) {
-      console.error('Authentication failed. Cannot fetch locations.');
-      setError('Authentication failed. Cannot fetch locations.');
-      return;
-    }
-    
-    try {
-      console.log('Fetching locations with auth token:', localStorage.getItem('token'));
-      const apiUrl = process.env.REACT_APP_API_URL || '/api';
-      console.log('Using API URL for locations:', apiUrl + '/locations/');
-      
-      const response = await api.get<Location[]>('/locations/');
-      console.log('Locations response:', response);
-      setLocations(response.data);
-    } catch (err: any) {
-      console.error('Error fetching locations:', err);
-      // If we have an axios error with a response, log the details
-      if (err && err.response) {
-        console.error('Response status:', err.response.status);
-        console.error('Response data:', err.response.data);
-      }
-      setError('Failed to fetch locations');
-    }
   };
 
   const handleOpenDialog = () => {
@@ -379,7 +405,7 @@ const Inventory: React.FC = () => {
         setSuccess('Inventory item added successfully');
       }
       setOpenDialog(false);
-      fetchInventory();
+      queryClient.invalidateQueries('inventory');
     } catch (err) {
       setError('Failed to save inventory item');
     }
@@ -396,7 +422,7 @@ const Inventory: React.FC = () => {
       });
       setSuccess('Usage recorded successfully');
       setOpenUsageDialog(false);
-      fetchInventory();
+      queryClient.invalidateQueries('inventory');
     } catch (err) {
       setError('Failed to record usage');
     }
@@ -468,7 +494,7 @@ const Inventory: React.FC = () => {
         setSuccess('Chemical added successfully');
       }
       handleCloseChemicalDialog();
-      fetchChemicals();
+      queryClient.invalidateQueries('chemicals');
     } catch (err: any) {
       console.error('Error saving chemical:', err);
       
@@ -516,7 +542,7 @@ const Inventory: React.FC = () => {
       setOpenLocationDialog(false);
       setNewLocation({ name: '', description: '' });
       setEditingLocation(null);
-      fetchLocations();
+      queryClient.invalidateQueries('locations');
     } catch (err: any) {
       console.error('Error saving location:', err);
       
@@ -536,6 +562,14 @@ const Inventory: React.FC = () => {
     }
   };
 
+  // Refresh data function
+  const refreshData = () => {
+    setError(null);
+    queryClient.invalidateQueries('inventory');
+    queryClient.invalidateQueries('chemicals');
+    queryClient.invalidateQueries('locations');
+  };
+
   return (
     <Container maxWidth="xl">
       <Typography variant="h4" gutterBottom>
@@ -550,12 +584,7 @@ const Inventory: React.FC = () => {
             <Button 
               color="inherit" 
               size="small"
-              onClick={() => {
-                setError(null);
-                fetchInventory();
-                fetchChemicals();
-                fetchLocations();
-              }}
+              onClick={refreshData}
             >
               Retry
             </Button>

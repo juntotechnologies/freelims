@@ -7,6 +7,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import App from './App';
 import theme from './theme';
 import { AuthProvider } from './contexts/AuthContext';
+import { SocketProvider } from './contexts/SocketContext';
 
 // Create a client for react-query
 const queryClient = new QueryClient({
@@ -30,7 +31,9 @@ root.render(
         <ThemeProvider theme={theme}>
           <CssBaseline />
           <AuthProvider>
-            <App />
+            <SocketProvider>
+              <App />
+            </SocketProvider>
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>

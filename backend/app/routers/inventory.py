@@ -7,6 +7,7 @@ from ..database import get_db
 from ..schemas import InventoryItem, InventoryItemCreate, InventoryItemUpdate, InventoryChange, InventoryChangeCreate, InventoryAudit, InventoryAuditCreate
 from ..models import InventoryItem as InventoryItemModel, InventoryChange as InventoryChangeModel, Chemical as ChemicalModel, Location as LocationModel, InventoryAudit as InventoryAuditModel
 from ..auth import get_current_active_user, get_current_user
+from ..websockets import notify_clients  # Import the notify_clients function
 
 router = APIRouter()
 
@@ -62,6 +63,9 @@ async def create_inventory_item(
     )
     db.add(audit_record)
     db.commit()
+    
+    # Notify all connected clients about the new inventory item
+    await notify_clients('inventory', 'create', db_item.as_dict())
     
     return db_item
 
@@ -246,6 +250,10 @@ async def update_inventory_item(
     
     db.commit()
     db.refresh(db_item)
+    
+    # Notify all connected clients about the updated inventory item
+    await notify_clients('inventory', 'update', db_item.as_dict())
+    
     return db_item
 
 @router.post("/changes", response_model=InventoryChange, status_code=status.HTTP_201_CREATED)
@@ -305,6 +313,11 @@ async def create_inventory_change(
     
     db.commit()
     db.refresh(db_change)
+    db.refresh(db_item)  # Refresh the item to get updated quantity
+    
+    # Notify all connected clients about the inventory change
+    await notify_clients('inventory', 'update', db_item.as_dict())
+    
     return db_change
 
 @router.get("/changes", response_model=List[InventoryChange])
