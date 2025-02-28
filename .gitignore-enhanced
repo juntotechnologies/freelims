@@ -1,0 +1,99 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+backend/venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Testing
+/coverage
+
+# Production
+/build
+/dist
+build/
+dist/
+
+# Misc
+.DS_Store
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+logs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Cache
+.cache/
+frontend/node_modules/.cache/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Sensitive information
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.cer
+**/*.crt
+**/private_key*
+**/*.der
+**/*.csr
+**/secrets.*
+**/credentials.*
+**/password*
+
+# Specific to your environment - customize as needed
+# Local paths
+**/Users/shaun/**
+**/Users/Shared/**
+**/SDrive/**
+**/ADrive/**
+
+# Local network information
+**/192.168.*
+**/10.*.*.*
+**/172.16.*.*
+**/172.17.*.*
+**/172.18.*.*
+**/172.19.*.*
+**/172.20.*.*
+**/172.21.*.*
+**/172.22.*.*
+**/172.23.*.*
+**/172.24.*.*
+**/172.25.*.*
+**/172.26.*.*
+**/172.27.*.*
+**/172.28.*.*
+**/172.29.*.*
+**/172.30.*.*
+**/172.31.*.*
+
+# Environment-specific configuration
+**/CIT-MacMini*
+**/cit-office*
+
+# Backup files
+**/backup*
+**/*.bak
+**/*.backup
+**/*.old 
