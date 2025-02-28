@@ -24,10 +24,9 @@ source "${SCRIPT_DIR}/utils/common.sh" 2>/dev/null || {
 CONFIG_FILE="${REPO_ROOT}/config/db_config.sh"
 LOG_DIR="${REPO_ROOT}/logs"
 LOG_FILE="${LOG_DIR}/database_management.log"
-DB_BACKUPS_DIR="${REPO_ROOT}/backups/database"
 
-# Ensure directories exist
-mkdir -p "${LOG_DIR}" "${DB_BACKUPS_DIR}"
+# Set default environment - will be updated later if specified
+ENVIRONMENT="development"
 
 # Default database settings (will be overridden by .env if available)
 DB_TYPE="postgresql"
@@ -38,8 +37,23 @@ DB_PASSWORD=""
 DB_NAME="freelims_dev"
 DB_SCHEMA_PATH="/Users/Shared/ADrive/freelims_db_dev"
 
-# Environment selection (development by default)
-ENVIRONMENT="development"
+# Backup directory function - will set the appropriate backup location based on environment
+set_backup_directory() {
+    if [[ "${ENVIRONMENT}" == "production" ]]; then
+        # Store production backups in SDrive
+        DB_BACKUPS_DIR="/Users/Shared/SDrive/freelims_backups"
+    else
+        # Store development backups in ADrive
+        DB_BACKUPS_DIR="/Users/Shared/ADrive/freelims_backups"
+    fi
+    
+    # Ensure the backup directory exists
+    mkdir -p "${DB_BACKUPS_DIR}"
+    log_message "info" "Using backup directory: ${DB_BACKUPS_DIR}"
+}
+
+# Ensure log directory exists
+mkdir -p "${LOG_DIR}"
 
 # ============================================================================
 # Utility Functions
@@ -182,7 +196,13 @@ check_database_exists() {
 backup_database() {
     log_message "info" "Starting database backup process..."
     
-    # Check if PostgreSQL is accessible
+    # Ensure backup directory is set
+    if [[ -z "${DB_BACKUPS_DIR}" ]]; then
+        set_backup_directory
+    fi
+    
+    # Check database connection
+    log_message "info" "Checking PostgreSQL connection..."
     check_postgres || return 1
     
     # Check if database exists
@@ -237,6 +257,11 @@ restore_database() {
     local backup_file="$1"
     
     log_message "info" "Starting database restore process..."
+    
+    # Ensure backup directory is set
+    if [[ -z "${DB_BACKUPS_DIR}" ]]; then
+        set_backup_directory
+    fi
     
     # Check if PostgreSQL is accessible
     check_postgres || return 1
@@ -487,8 +512,14 @@ initialize_database() {
 
 # List available backups
 list_backups() {
-    log_message "info" "Available database backups:"
+    log_message "info" "Listing available database backups..."
     
+    # Ensure backup directory is set
+    if [[ -z "${DB_BACKUPS_DIR}" ]]; then
+        set_backup_directory
+    fi
+    
+    # Check if any backups exist
     if [[ ! -d "${DB_BACKUPS_DIR}" ]] || [[ -z "$(ls -A "${DB_BACKUPS_DIR}")" ]]; then
         log_message "info" "No backups found in ${DB_BACKUPS_DIR}"
         return 0
@@ -595,12 +626,17 @@ show_status() {
 
 # Remove old backups, keeping only the N most recent
 prune_backups() {
-    local keep_count=${1:-10}  # Default to keeping 10 most recent backups
-    
+    local keep_count=${1:-10}
     log_message "info" "Pruning old database backups, keeping ${keep_count} most recent..."
     
+    # Ensure backup directory is set
+    if [[ -z "${DB_BACKUPS_DIR}" ]]; then
+        set_backup_directory
+    fi
+    
+    # Check if any backups exist
     if [[ ! -d "${DB_BACKUPS_DIR}" ]] || [[ -z "$(ls -A "${DB_BACKUPS_DIR}" 2>/dev/null)" ]]; then
-        log_message "info" "No backups found to prune"
+        log_message "info" "No backups found in ${DB_BACKUPS_DIR}"
         return 0
     fi
     
@@ -693,6 +729,9 @@ parse_arguments() {
 main() {
     # Parse command-line arguments
     parse_arguments "$@"
+    
+    # Set backup directory based on environment
+    set_backup_directory
     
     # Load database configuration
     load_db_config

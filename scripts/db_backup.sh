@@ -163,14 +163,22 @@ main() {
     # Create a backup
     echo "Creating backup of ${ENVIRONMENT} database..."
     "${DB_MANAGER}" --environment "${ENVIRONMENT}" backup
+    BACKUP_RESULT=$?
     
     # Check if backup was successful
-    if [[ $? -eq 0 ]]; then
+    if [[ ${BACKUP_RESULT} -eq 0 ]]; then
+        # Get the actual backup directory based on environment
+        if [[ "${ENVIRONMENT}" == "production" ]]; then
+            BACKUP_DIR="/Users/Shared/SDrive/freelims_backups"
+        else
+            BACKUP_DIR="/Users/Shared/ADrive/freelims_backups"
+        fi
+        
         echo ""
         echo "======================================================================"
         echo "Database backup completed successfully!"
         echo ""
-        echo "Backup location: ${BACKUPS_DIR}"
+        echo "Backup location: ${BACKUP_DIR}"
         echo ""
         echo "To view available backups, run:"
         echo "  ./scripts/db_backup.sh -l"
