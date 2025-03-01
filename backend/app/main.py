@@ -39,7 +39,14 @@ app.add_middleware(
         "http://localhost:3001", 
         "http://localhost:3002",
         "http://192.168.1.200:3001",
-        "http://192.168.1.200:3002"
+        "http://192.168.1.200:3002",
+        # Add Tailscale IPs
+        "http://100.106.104.3:3001",
+        "http://100.106.104.3:3002",
+        "http://100.106.104.3:8001",
+        "http://100.106.104.3:8002",
+        "http://100.104.120.43:3001",
+        "http://100.104.120.43:3002"
     ],  # React frontend
     allow_credentials=True,
     allow_methods=["*"],
