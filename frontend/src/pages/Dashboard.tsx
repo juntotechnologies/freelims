@@ -10,7 +10,6 @@ import {
   CircularProgress,
 } from '@mui/material';
 import {
-  Science as ScienceIcon,
   Assignment as AssignmentIcon,
   Inventory as InventoryIcon,
   People as PeopleIcon,
@@ -68,7 +67,6 @@ const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    samples: 0,
     pendingTests: 0,
     inventoryItems: 0,
     activeUsers: 0
@@ -83,7 +81,6 @@ const Dashboard: React.FC = () => {
     // you would fetch these values from API endpoints
     // For now, we're setting them to 0 as requested
     setStats({
-      samples: 0,
       pendingTests: 0,
       inventoryItems: 0,
       activeUsers: 0
@@ -101,16 +98,7 @@ const Dashboard: React.FC = () => {
 
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Total Samples"
-            value={stats.samples}
-            icon={<ScienceIcon />}
-            color="#4caf50"
-            loading={loading}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
             title="Pending Tests"
             value={stats.pendingTests}
@@ -119,7 +107,7 @@ const Dashboard: React.FC = () => {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
             title="Inventory Items"
             value={stats.inventoryItems}
@@ -128,7 +116,7 @@ const Dashboard: React.FC = () => {
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
             title="Active Users"
             value={stats.activeUsers}

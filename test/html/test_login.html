@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeLIMS Login Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>FreeLIMS Login Test</h1>
+    
+    <div class="form-group">
+        <label for="username">Username:</label>
+        <input type="text" id="username" value="admin">
+    </div>
+    
+    <div class="form-group">
+        <label for="password">Password:</label>
+        <input type="password" id="password" value="password">
+    </div>
+    
+    <button onclick="testLogin()">Test Login</button>
+    
+    <div class="result" id="result">Results will appear here...</div>
+    
+    <h2>Registration Test</h2>
+    
+    <div class="form-group">
+        <label for="reg-email">Email:</label>
+        <input type="email" id="reg-email" value="test2@example.com">
+    </div>
+    
+    <div class="form-group">
+        <label for="reg-username">Username:</label>
+        <input type="text" id="reg-username" value="testuser2">
+    </div>
+    
+    <div class="form-group">
+        <label for="reg-fullname">Full Name:</label>
+        <input type="text" id="reg-fullname" value="Test User 2">
+    </div>
+    
+    <div class="form-group">
+        <label for="reg-password">Password:</label>
+        <input type="password" id="reg-password" value="password123">
+    </div>
+    
+    <button onclick="testRegistration()">Test Registration</button>
+    
+    <div class="result" id="reg-result">Results will appear here...</div>
+    
+    <script>
+        async function testLogin() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = 'Testing login...';
+            
+            try {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                // Use URLSearchParams
+                const params = new URLSearchParams();
+                params.append('username', username);
+                params.append('password', password);
+                
+                console.log('Sending login request to:', 'http://localhost:8001/api/token');
+                console.log('With params:', params.toString());
+                
+                const response = await axios.post('http://localhost:8001/api/token', params, {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                });
+                
+                console.log('Login response:', response);
+                resultDiv.textContent = 'Login successful!\n\nToken: ' + response.data.access_token;
+                
+                // Test getting user info
+                const userResponse = await axios.get('http://localhost:8001/api/users/me', {
+                    headers: {
+                        'Authorization': `Bearer ${response.data.access_token}`
+                    }
+                });
+                
+                console.log('User info response:', userResponse);
+                resultDiv.textContent += '\n\nUser info:\n' + JSON.stringify(userResponse.data, null, 2);
+            } catch (error) {
+                console.error('Login error:', error);
+                let errorMessage = 'Login failed: ';
+                
+                if (error.response) {
+                    console.error('Error response:', error.response);
+                    errorMessage += error.response.status + ' - ' + JSON.stringify(error.response.data);
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                resultDiv.textContent = errorMessage;
+            }
+        }
+        
+        async function testRegistration() {
+            const resultDiv = document.getElementById('reg-result');
+            resultDiv.textContent = 'Testing registration...';
+            
+            try {
+                const email = document.getElementById('reg-email').value;
+                const username = document.getElementById('reg-username').value;
+                const fullName = document.getElementById('reg-fullname').value;
+                const password = document.getElementById('reg-password').value;
+                
+                const userData = {
+                    email,
+                    username,
+                    full_name: fullName,
+                    password
+                };
+                
+                console.log('Sending registration request to:', 'http://localhost:8001/api/register');
+                console.log('With data:', userData);
+                
+                const response = await axios.post('http://localhost:8001/api/register', userData);
+                
+                console.log('Registration response:', response);
+                resultDiv.textContent = 'Registration successful!\n\nUser: ' + JSON.stringify(response.data, null, 2);
+            } catch (error) {
+                console.error('Registration error:', error);
+                let errorMessage = 'Registration failed: ';
+                
+                if (error.response) {
+                    console.error('Error response:', error.response);
+                    errorMessage += error.response.status + ' - ' + JSON.stringify(error.response.data);
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                resultDiv.textContent = errorMessage;
+            }
+        }
+    </script>
+</body>
+</html> 

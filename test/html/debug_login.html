@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border: 1px solid #ddd;
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            margin-bottom: 20px;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 10px 16px;
+            margin: 0;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #4285f4;
+            color: white;
+        }
+        .tabcontent {
+            display: none;
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            border-top: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>FreeLIMS Debug Authentication</h1>
+    
+    <div class="tab">
+        <button class="tablinks active" onclick="openTab(event, 'LoginTab')">Login</button>
+        <button class="tablinks" onclick="openTab(event, 'RegisterTab')">Register</button>
+        <button class="tablinks" onclick="openTab(event, 'TokenTestTab')">Token Test</button>
+    </div>
+    
+    <div id="LoginTab" class="tabcontent" style="display: block;">
+        <h2>Login Test</h2>
+        <div class="container">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" value="admin">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="password">
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="showRequestDetails"> Show Request Details
+                </label>
+            </div>
+            <button onclick="testLoginFormData()">Test Login (FormData)</button>
+            <button onclick="testLoginURLEncoded()">Test Login (URLEncoded)</button>
+            <button onclick="testLoginJSON()">Test Login (JSON)</button>
+        </div>
+        <pre id="loginResult">Results will appear here...</pre>
+    </div>
+    
+    <div id="RegisterTab" class="tabcontent">
+        <h2>Register Test</h2>
+        <div class="container">
+            <div class="form-group">
+                <label for="regEmail">Email:</label>
+                <input type="email" id="regEmail" value="test@example.com">
+            </div>
+            <div class="form-group">
+                <label for="regUsername">Username:</label>
+                <input type="text" id="regUsername" value="testuser">
+            </div>
+            <div class="form-group">
+                <label for="regFullName">Full Name:</label>
+                <input type="text" id="regFullName" value="Test User">
+            </div>
+            <div class="form-group">
+                <label for="regPassword">Password:</label>
+                <input type="password" id="regPassword" value="password">
+            </div>
+            <button onclick="testRegister()">Test Registration</button>
+        </div>
+        <pre id="registerResult">Results will appear here...</pre>
+    </div>
+    
+    <div id="TokenTestTab" class="tabcontent">
+        <h2>Test Token</h2>
+        <div class="container">
+            <div class="form-group">
+                <label for="token">Token:</label>
+                <input type="text" id="token" placeholder="Paste token here">
+            </div>
+            <button onclick="testToken()">Test Token</button>
+        </div>
+        <pre id="tokenResult">Results will appear here...</pre>
+    </div>
+    
+    <script>
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+        
+        // Test login using FormData (browser-native)
+        async function testLoginFormData() {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.textContent = 'Testing login with FormData...';
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const showDetails = document.getElementById('showRequestDetails').checked;
+            
+            try {
+                // Create FormData object
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+                
+                let requestDetails = '';
+                if (showDetails) {
+                    requestDetails = `Request details:
+URL: http://localhost:8001/api/token
+Method: POST
+Content-Type: multipart/form-data (automatic with FormData)
+Body: FormData containing username=${username} and password=[HIDDEN]`;
+                }
+                
+                const response = await fetch('http://localhost:8001/api/token', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = `Login successful!\n\nToken: ${result.access_token}\n\n${requestDetails}`;
+                    // Save token for later test
+                    document.getElementById('token').value = result.access_token;
+                } else {
+                    resultDiv.textContent = `Login failed: ${response.status} ${response.statusText}\n\n${JSON.stringify(result, null, 2)}\n\n${requestDetails}`;
+                }
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Test login using URL encoded form data
+        async function testLoginURLEncoded() {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.textContent = 'Testing login with URLSearchParams...';
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const showDetails = document.getElementById('showRequestDetails').checked;
+            
+            try {
+                // Create URLSearchParams object
+                const params = new URLSearchParams();
+                params.append('username', username);
+                params.append('password', password);
+                
+                let requestDetails = '';
+                if (showDetails) {
+                    requestDetails = `Request details:
+URL: http://localhost:8001/api/token
+Method: POST
+Content-Type: application/x-www-form-urlencoded
+Body: ${params.toString()}`;
+                }
+                
+                const response = await fetch('http://localhost:8001/api/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: params
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = `Login successful!\n\nToken: ${result.access_token}\n\n${requestDetails}`;
+                    // Save token for later test
+                    document.getElementById('token').value = result.access_token;
+                } else {
+                    resultDiv.textContent = `Login failed: ${response.status} ${response.statusText}\n\n${JSON.stringify(result, null, 2)}\n\n${requestDetails}`;
+                }
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Test login using JSON data
+        async function testLoginJSON() {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.textContent = 'Testing login with JSON...';
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const showDetails = document.getElementById('showRequestDetails').checked;
+            
+            try {
+                const data = {
+                    username: username,
+                    password: password
+                };
+                
+                let requestDetails = '';
+                if (showDetails) {
+                    requestDetails = `Request details:
+URL: http://localhost:8001/api/token
+Method: POST
+Content-Type: application/json
+Body: ${JSON.stringify(data)}`;
+                }
+                
+                const response = await fetch('http://localhost:8001/api/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = `Login successful!\n\nToken: ${result.access_token}\n\n${requestDetails}`;
+                    // Save token for later test
+                    document.getElementById('token').value = result.access_token;
+                } else {
+                    resultDiv.textContent = `Login failed: ${response.status} ${response.statusText}\n\n${JSON.stringify(result, null, 2)}\n\n${requestDetails}`;
+                }
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Test registration
+        async function testRegister() {
+            const resultDiv = document.getElementById('registerResult');
+            resultDiv.textContent = 'Testing registration...';
+            
+            const email = document.getElementById('regEmail').value;
+            const username = document.getElementById('regUsername').value;
+            const fullName = document.getElementById('regFullName').value;
+            const password = document.getElementById('regPassword').value;
+            
+            try {
+                const data = {
+                    email: email,
+                    username: username,
+                    full_name: fullName,
+                    password: password
+                };
+                
+                const response = await fetch('http://localhost:8001/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = `Registration successful!\n\n${JSON.stringify(result, null, 2)}`;
+                } else {
+                    resultDiv.textContent = `Registration failed: ${response.status} ${response.statusText}\n\n${JSON.stringify(result, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Test token
+        async function testToken() {
+            const resultDiv = document.getElementById('tokenResult');
+            resultDiv.textContent = 'Testing token...';
+            
+            const token = document.getElementById('token').value;
+            
+            if (!token) {
+                resultDiv.textContent = 'Please enter a token to test';
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8001/api/users/me', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.textContent = `Token is valid!\n\nUser info:\n${JSON.stringify(result, null, 2)}`;
+                } else {
+                    resultDiv.textContent = `Token is invalid: ${response.status} ${response.statusText}\n\n${JSON.stringify(result, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeLIMS Authentication Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .test-panel {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .result {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            margin-bottom: 20px;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 10px 16px;
+            transition: 0.3s;
+            color: #333;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .tabcontent {
+            display: none;
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            border-top: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>FreeLIMS Authentication Test</h1>
+    
+    <div class="tab">
+        <button class="tablinks active" onclick="openTab(event, 'LoginTests')">Login Tests</button>
+        <button class="tablinks" onclick="openTab(event, 'RegisterTests')">Registration Tests</button>
+    </div>
+    
+    <div id="LoginTests" class="tabcontent" style="display: block;">
+        <h2>Login Tests</h2>
+        <div class="container">
+            <div class="test-panel">
+                <h3>URLSearchParams Login</h3>
+                <p>Login using URLSearchParams (correct method)</p>
+                <input type="text" id="username1" placeholder="Username" value="test_user2">
+                <input type="password" id="password1" placeholder="Password" value="test123">
+                <button onclick="testLoginWithURLSearchParams()">Test Login</button>
+                <div id="urlSearchParamsResult" class="result"></div>
+            </div>
+            
+            <div class="test-panel">
+                <h3>FormData Login</h3>
+                <p>Login using FormData</p>
+                <input type="text" id="username2" placeholder="Username" value="test_user2">
+                <input type="password" id="password2" placeholder="Password" value="test123">
+                <button onclick="testLoginWithFormData()">Test Login</button>
+                <div id="formDataResult" class="result"></div>
+            </div>
+        </div>
+        
+        <div class="container">
+            <div class="test-panel">
+                <h3>JSON Login</h3>
+                <p>Login using JSON format (should fail)</p>
+                <input type="text" id="username3" placeholder="Username" value="test_user2">
+                <input type="password" id="password3" placeholder="Password" value="test123">
+                <button onclick="testLoginWithJSON()">Test Login</button>
+                <div id="jsonResult" class="result"></div>
+            </div>
+            
+            <div class="test-panel">
+                <h3>Direct Form Submit</h3>
+                <p>Submit a form directly</p>
+                <form id="loginForm" onsubmit="return testLoginWithForm(event)">
+                    <input type="text" name="username" placeholder="Username" value="test_user2">
+                    <input type="password" name="password" placeholder="Password" value="test123">
+                    <button type="submit">Submit Form</button>
+                </form>
+                <div id="formResult" class="result"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="RegisterTests" class="tabcontent">
+        <h2>Registration Tests</h2>
+        <div class="test-panel">
+            <h3>Register New User</h3>
+            <input type="email" id="regEmail" placeholder="Email">
+            <input type="text" id="regUsername" placeholder="Username">
+            <input type="text" id="regFullName" placeholder="Full Name">
+            <input type="password" id="regPassword" placeholder="Password">
+            <button onclick="testRegistration()">Register</button>
+            <div id="registrationResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8001/api';
+        
+        // Function to display results
+        function displayResult(elementId, success, data) {
+            const resultElement = document.getElementById(elementId);
+            if (success) {
+                resultElement.innerHTML = '<span style="color:green">SUCCESS</span><br>' + JSON.stringify(data, null, 2);
+            } else {
+                resultElement.innerHTML = '<span style="color:red">ERROR</span><br>' + JSON.stringify(data, null, 2);
+            }
+        }
+        
+        // Test login with URLSearchParams
+        async function testLoginWithURLSearchParams() {
+            const username = document.getElementById('username1').value;
+            const password = document.getElementById('password1').value;
+            
+            try {
+                document.getElementById('urlSearchParamsResult').innerHTML = 'Sending request...';
+                
+                // Create URLSearchParams object
+                const params = new URLSearchParams();
+                params.append('username', username);
+                params.append('password', password);
+                
+                console.log('Sending login request with URLSearchParams');
+                const response = await axios.post(`${API_URL}/token`, params, {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                });
+                
+                displayResult('urlSearchParamsResult', true, response.data);
+            } catch (error) {
+                console.error('Login error:', error);
+                displayResult('urlSearchParamsResult', false, {
+                    status: error.response?.status,
+                    data: error.response?.data || error.message
+                });
+            }
+        }
+        
+        // Test login with FormData
+        async function testLoginWithFormData() {
+            const username = document.getElementById('username2').value;
+            const password = document.getElementById('password2').value;
+            
+            try {
+                document.getElementById('formDataResult').innerHTML = 'Sending request...';
+                
+                // Create FormData object
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+                
+                console.log('Sending login request with FormData');
+                const response = await axios.post(`${API_URL}/token`, formData);
+                
+                displayResult('formDataResult', true, response.data);
+            } catch (error) {
+                console.error('Login error:', error);
+                displayResult('formDataResult', false, {
+                    status: error.response?.status,
+                    data: error.response?.data || error.message
+                });
+            }
+        }
+        
+        // Test login with JSON
+        async function testLoginWithJSON() {
+            const username = document.getElementById('username3').value;
+            const password = document.getElementById('password3').value;
+            
+            try {
+                document.getElementById('jsonResult').innerHTML = 'Sending request...';
+                
+                console.log('Sending login request with JSON');
+                const response = await axios.post(`${API_URL}/token`, {
+                    username,
+                    password
+                });
+                
+                displayResult('jsonResult', true, response.data);
+            } catch (error) {
+                console.error('Login error:', error);
+                displayResult('jsonResult', false, {
+                    status: error.response?.status,
+                    data: error.response?.data || error.message
+                });
+            }
+        }
+        
+        // Test login with form submission
+        function testLoginWithForm(event) {
+            event.preventDefault();
+            
+            document.getElementById('formResult').innerHTML = 'Sending request...';
+            
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            console.log('Submitting form');
+            axios.post(`${API_URL}/token`, formData)
+                .then(response => {
+                    displayResult('formResult', true, response.data);
+                })
+                .catch(error => {
+                    console.error('Form submission error:', error);
+                    displayResult('formResult', false, {
+                        status: error.response?.status,
+                        data: error.response?.data || error.message
+                    });
+                });
+                
+            return false;
+        }
+        
+        // Test registration
+        async function testRegistration() {
+            const email = document.getElementById('regEmail').value;
+            const username = document.getElementById('regUsername').value;
+            const fullName = document.getElementById('regFullName').value;
+            const password = document.getElementById('regPassword').value;
+            
+            if (!email || !username || !fullName || !password) {
+                displayResult('registrationResult', false, {
+                    message: 'Please fill in all fields'
+                });
+                return;
+            }
+            
+            try {
+                document.getElementById('registrationResult').innerHTML = 'Sending request...';
+                
+                const userData = {
+                    email,
+                    username,
+                    full_name: fullName,
+                    password
+                };
+                
+                console.log('Sending registration request');
+                const response = await axios.post(`${API_URL}/register`, userData);
+                
+                displayResult('registrationResult', true, response.data);
+            } catch (error) {
+                console.error('Registration error:', error);
+                displayResult('registrationResult', false, {
+                    status: error.response?.status,
+                    data: error.response?.data || error.message
+                });
+            }
+        }
+        
+        // Tab functionality
+        function openTab(evt, tabName) {
+            let i, tabcontent, tablinks;
+            
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+    </script>
+</body>
+</html> 

@@ -1,8 +1,8 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 
-// Get the API URL from environment variables
-const API_URL = process.env.REACT_APP_API_URL || '/api';
+// Get the API URL from environment variables - remove the trailing "/api" if it exists
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001/api';
 
 // Define user type
 export interface User {
@@ -63,11 +63,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const token = localStorage.getItem('token');
       if (token) {
         try {
-          // Get current user info
+          // Get current user info - using full path
           const response = await axios.get<User>(`${API_URL}/users/me`);
           setUser(response.data);
         } catch (err) {
           // If token is invalid, clear it
+          console.error("Error fetching user data:", err);
           localStorage.removeItem('token');
         }
       }
@@ -81,13 +82,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (username: string, password: string) => {
     try {
       setError(null);
-      // Use FormData for compatibility with FastAPI's OAuth2 form
-      const formData = new FormData();
-      formData.append('username', username);
-      formData.append('password', password);
+      console.log("Attempting login to:", `${API_URL}/token`);
+      
+      // Use URLSearchParams instead of FormData for better compatibility
+      const params = new URLSearchParams();
+      params.append('username', username);
+      params.append('password', password);
 
-      const response = await axios.post<TokenResponse>(`${API_URL}/token`, formData);
+      const response = await axios.post<TokenResponse>(`${API_URL}/token`, params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+      
       const { access_token } = response.data;
+      console.log("Login successful, token received");
 
       // Save token to localStorage
       localStorage.setItem('token', access_token);
@@ -96,6 +105,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const userResponse = await axios.get<User>(`${API_URL}/users/me`);
       setUser(userResponse.data);
     } catch (err: any) {
+      console.error("Login error:", err);
       setError(err.response?.data?.detail || 'Login failed');
       throw err;
     }
@@ -105,15 +115,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const register = async (email: string, username: string, fullName: string, password: string) => {
     try {
       setError(null);
+      console.log("Attempting registration to:", `${API_URL}/register`);
+      
       await axios.post(`${API_URL}/register`, {
         email,
         username,
         full_name: fullName,
         password
       });
+      
+      console.log("Registration successful, attempting login");
       // Auto login after registration
       await login(username, password);
     } catch (err: any) {
+      console.error("Registration error:", err);
       setError(err.response?.data?.detail || 'Registration failed');
       throw err;
     }

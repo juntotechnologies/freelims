@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeLIMS Authentication Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .column {
+            flex: 1;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .form-panel {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+            width: 100%;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow: auto;
+            max-height: 300px;
+            white-space: pre-wrap;
+            font-size: 14px;
+        }
+        #tokenDisplay {
+            word-break: break-all;
+        }
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 10px 16px;
+            transition: 0.3s;
+            width: auto;
+            margin: 0;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .tabcontent {
+            display: none;
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            border-top: none;
+        }
+        #clearStorageBtn {
+            background-color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <h1>FreeLIMS Authentication Debug Tool</h1>
+    
+    <div class="tab">
+        <button class="tablinks active" onclick="openTab(event, 'LoginTab')">Login Debug</button>
+        <button class="tablinks" onclick="openTab(event, 'RegisterTab')">Register Debug</button>
+        <button class="tablinks" onclick="openTab(event, 'StorageTab')">Local Storage</button>
+    </div>
+    
+    <div id="LoginTab" class="tabcontent" style="display: block;">
+        <div class="container">
+            <div class="column">
+                <div class="form-panel">
+                    <h2>Login</h2>
+                    <div>
+                        <label for="username">Username:</label>
+                        <input type="text" id="username" value="test_user2">
+                    </div>
+                    <div>
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" value="test123">
+                    </div>
+                    <button onclick="loginWithURLSearchParams()">Login with URLSearchParams</button>
+                    <button onclick="loginWithFormData()">Login with FormData</button>
+                    <button onclick="loginWithJSON()">Login with JSON</button>
+                </div>
+                
+                <div class="form-panel">
+                    <h3>Current Token</h3>
+                    <pre id="tokenDisplay">No token stored</pre>
+                    <button id="clearStorageBtn" onclick="clearStorage()">Clear Storage</button>
+                </div>
+            </div>
+            
+            <div class="column">
+                <div class="form-panel">
+                    <h3>Request Details</h3>
+                    <pre id="requestDetails">No request made yet</pre>
+                </div>
+                
+                <div class="form-panel">
+                    <h3>Response</h3>
+                    <pre id="responseDetails">No response received yet</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="RegisterTab" class="tabcontent">
+        <div class="container">
+            <div class="column">
+                <div class="form-panel">
+                    <h2>Register</h2>
+                    <div>
+                        <label for="regEmail">Email:</label>
+                        <input type="email" id="regEmail" value="unique_user@example.com">
+                    </div>
+                    <div>
+                        <label for="regUsername">Username:</label>
+                        <input type="text" id="regUsername" value="unique_user">
+                    </div>
+                    <div>
+                        <label for="regFullName">Full Name:</label>
+                        <input type="text" id="regFullName" value="Unique User">
+                    </div>
+                    <div>
+                        <label for="regPassword">Password:</label>
+                        <input type="password" id="regPassword" value="password123">
+                    </div>
+                    <button onclick="registerUser()">Register</button>
+                </div>
+            </div>
+            
+            <div class="column">
+                <div class="form-panel">
+                    <h3>Request Details</h3>
+                    <pre id="regRequestDetails">No request made yet</pre>
+                </div>
+                
+                <div class="form-panel">
+                    <h3>Response</h3>
+                    <pre id="regResponseDetails">No response received yet</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="StorageTab" class="tabcontent">
+        <div class="form-panel">
+            <h2>Local Storage Contents</h2>
+            <pre id="storageContents">Loading storage...</pre>
+            <button onclick="refreshStorage()">Refresh Storage</button>
+        </div>
+        
+        <div class="form-panel">
+            <h2>Test User Info</h2>
+            <button onclick="testGetUserInfo()">Test Current User Info</button>
+            <pre id="userInfoDetails">No user info request made yet</pre>
+        </div>
+    </div>
+    
+    <script>
+        // Constants
+        const API_URL = 'http://localhost:8001/api';
+        
+        // Helper function to update token display
+        function updateTokenDisplay() {
+            const token = localStorage.getItem('token');
+            const tokenDisplay = document.getElementById('tokenDisplay');
+            if (token) {
+                tokenDisplay.textContent = token;
+            } else {
+                tokenDisplay.textContent = 'No token stored';
+            }
+        }
+        
+        // Helper function to update storage display
+        function refreshStorage() {
+            const storageContents = document.getElementById('storageContents');
+            let content = '';
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                let value = localStorage.getItem(key);
+                
+                // Truncate long values
+                if (value && value.length > 100) {
+                    value = value.substring(0, 100) + '...';
+                }
+                
+                content += `${key}: ${value}\n`;
+            }
+            
+            storageContents.textContent = content || 'Storage is empty';
+        }
+        
+        // Function to clear storage
+        function clearStorage() {
+            localStorage.clear();
+            updateTokenDisplay();
+            refreshStorage();
+            alert('Local storage cleared');
+        }
+        
+        // Initialize
+        updateTokenDisplay();
+        refreshStorage();
+        
+        // Login with URLSearchParams
+        async function loginWithURLSearchParams() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const requestDetails = document.getElementById('requestDetails');
+            const responseDetails = document.getElementById('responseDetails');
+            
+            try {
+                // Create URLSearchParams
+                const params = new URLSearchParams();
+                params.append('username', username);
+                params.append('password', password);
+                
+                // Update request details
+                requestDetails.textContent = `Method: POST
+URL: ${API_URL}/token
+Headers: Content-Type: application/x-www-form-urlencoded
+Body: ${params.toString()}`;
+                
+                // Make the request
+                const startTime = performance.now();
+                const response = await fetch(`${API_URL}/token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: params
+                });
+                const endTime = performance.now();
+                
+                // Get response data
+                const data = await response.json();
+                
+                // Update response details
+                const headers = Array.from(response.headers.entries())
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('\n');
+                
+                responseDetails.textContent = `Status: ${response.status} ${response.statusText}
+Time: ${(endTime - startTime).toFixed(2)} ms
+Headers:
+${headers}
+
+Body:
+${JSON.stringify(data, null, 2)}`;
+                
+                // If successful, save token
+                if (response.ok && data.access_token) {
+                    localStorage.setItem('token', data.access_token);
+                    updateTokenDisplay();
+                    refreshStorage();
+                }
+            } catch (error) {
+                responseDetails.textContent = `Error: ${error.message}`;
+                console.error('Login error:', error);
+            }
+        }
+        
+        // Login with FormData
+        async function loginWithFormData() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const requestDetails = document.getElementById('requestDetails');
+            const responseDetails = document.getElementById('responseDetails');
+            
+            try {
+                // Create FormData
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+                
+                // Update request details
+                requestDetails.textContent = `Method: POST
+URL: ${API_URL}/token
+Headers: (No Content-Type header - browser will set it)
+Body: FormData containing:
+- username: ${username}
+- password: ******`;
+                
+                // Make the request
+                const startTime = performance.now();
+                const response = await fetch(`${API_URL}/token`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const endTime = performance.now();
+                
+                // Get response data
+                const data = await response.json();
+                
+                // Update response details
+                const headers = Array.from(response.headers.entries())
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('\n');
+                
+                responseDetails.textContent = `Status: ${response.status} ${response.statusText}
+Time: ${(endTime - startTime).toFixed(2)} ms
+Headers:
+${headers}
+
+Body:
+${JSON.stringify(data, null, 2)}`;
+                
+                // If successful, save token
+                if (response.ok && data.access_token) {
+                    localStorage.setItem('token', data.access_token);
+                    updateTokenDisplay();
+                    refreshStorage();
+                }
+            } catch (error) {
+                responseDetails.textContent = `Error: ${error.message}`;
+                console.error('Login error:', error);
+            }
+        }
+        
+        // Login with JSON
+        async function loginWithJSON() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const requestDetails = document.getElementById('requestDetails');
+            const responseDetails = document.getElementById('responseDetails');
+            
+            try {
+                const jsonBody = JSON.stringify({ username, password });
+                
+                // Update request details
+                requestDetails.textContent = `Method: POST
+URL: ${API_URL}/token
+Headers: Content-Type: application/json
+Body: ${jsonBody}`;
+                
+                // Make the request
+                const startTime = performance.now();
+                const response = await fetch(`${API_URL}/token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: jsonBody
+                });
+                const endTime = performance.now();
+                
+                // Get response data
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = await response.text();
+                }
+                
+                // Update response details
+                const headers = Array.from(response.headers.entries())
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('\n');
+                
+                const dataDisplay = typeof data === 'string' 
+                    ? data 
+                    : JSON.stringify(data, null, 2);
+                
+                responseDetails.textContent = `Status: ${response.status} ${response.statusText}
+Time: ${(endTime - startTime).toFixed(2)} ms
+Headers:
+${headers}
+
+Body:
+${dataDisplay}`;
+                
+                // If successful, save token
+                if (response.ok && data.access_token) {
+                    localStorage.setItem('token', data.access_token);
+                    updateTokenDisplay();
+                    refreshStorage();
+                }
+            } catch (error) {
+                responseDetails.textContent = `Error: ${error.message}`;
+                console.error('Login error:', error);
+            }
+        }
+        
+        // Register user
+        async function registerUser() {
+            const email = document.getElementById('regEmail').value;
+            const username = document.getElementById('regUsername').value;
+            const fullName = document.getElementById('regFullName').value;
+            const password = document.getElementById('regPassword').value;
+            const requestDetails = document.getElementById('regRequestDetails');
+            const responseDetails = document.getElementById('regResponseDetails');
+            
+            try {
+                // Create JSON body
+                const userData = {
+                    email,
+                    username,
+                    full_name: fullName,
+                    password
+                };
+                
+                const jsonBody = JSON.stringify(userData);
+                
+                // Update request details
+                requestDetails.textContent = `Method: POST
+URL: ${API_URL}/register
+Headers: Content-Type: application/json
+Body: ${jsonBody}`;
+                
+                // Make the request
+                const startTime = performance.now();
+                const response = await fetch(`${API_URL}/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: jsonBody
+                });
+                const endTime = performance.now();
+                
+                // Get response data
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = await response.text();
+                }
+                
+                // Update response details
+                const headers = Array.from(response.headers.entries())
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('\n');
+                
+                const dataDisplay = typeof data === 'string' 
+                    ? data 
+                    : JSON.stringify(data, null, 2);
+                
+                responseDetails.textContent = `Status: ${response.status} ${response.statusText}
+Time: ${(endTime - startTime).toFixed(2)} ms
+Headers:
+${headers}
+
+Body:
+${dataDisplay}`;
+                
+                // If successful, proceed with login
+                if (response.ok) {
+                    alert('Registration successful! You can now login with these credentials.');
+                    // Auto-fill login form
+                    document.getElementById('username').value = username;
+                    document.getElementById('password').value = password;
+                    // Switch to login tab
+                    document.querySelector('.tablinks').click();
+                }
+            } catch (error) {
+                responseDetails.textContent = `Error: ${error.message}`;
+                console.error('Registration error:', error);
+            }
+        }
+        
+        // Test user info request
+        async function testGetUserInfo() {
+            const userInfoDetails = document.getElementById('userInfoDetails');
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                userInfoDetails.textContent = 'No token found in local storage. Please login first.';
+                return;
+            }
+            
+            try {
+                userInfoDetails.textContent = 'Sending request...';
+                
+                const startTime = performance.now();
+                const response = await fetch(`${API_URL}/users/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const endTime = performance.now();
+                
+                // Get response data
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = await response.text();
+                }
+                
+                // Update details
+                const headers = Array.from(response.headers.entries())
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('\n');
+                
+                const dataDisplay = typeof data === 'string' 
+                    ? data 
+                    : JSON.stringify(data, null, 2);
+                
+                userInfoDetails.textContent = `Status: ${response.status} ${response.statusText}
+Time: ${(endTime - startTime).toFixed(2)} ms
+Headers:
+${headers}
+
+Body:
+${dataDisplay}`;
+                
+            } catch (error) {
+                userInfoDetails.textContent = `Error: ${error.message}`;
+                console.error('User info error:', error);
+            }
+        }
+        
+        // Tab functionality
+        function openTab(evt, tabName) {
+            const tabcontent = document.getElementsByClassName("tabcontent");
+            for (let i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            
+            const tablinks = document.getElementsByClassName("tablinks");
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+            
+            // Refresh storage when switching to storage tab
+            if (tabName === 'StorageTab') {
+                refreshStorage();
+            }
+        }
+    </script>
+</body>
+</html> 

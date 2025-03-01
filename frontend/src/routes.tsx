@@ -5,9 +5,7 @@ import DashboardLayout from './components/layouts/DashboardLayout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
-import SampleManagement from './pages/SampleManagement';
 import TestManagement from './pages/TestManagement';
-import QualityControl from './pages/QualityControl';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
 import Inventory from './pages/Inventory';
@@ -82,16 +80,8 @@ const routes: RouteObject[] = [
         element: <Inventory />,
       },
       {
-        path: 'samples',
-        element: <SampleManagement />,
-      },
-      {
         path: 'tests',
         element: <TestManagement />,
-      },
-      {
-        path: 'quality-control',
-        element: <QualityControl />,
       },
       {
         path: 'users',

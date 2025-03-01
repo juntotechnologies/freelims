@@ -1,1 +1,0 @@
-scripts/dev/stop_dev.sh

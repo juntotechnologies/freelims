@@ -74,29 +74,30 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setConnected(false);
     });
 
-    // Handle inventory updates
+    // Set up event listeners for various resource updates
     socketIo.on('inventory_updated', (data) => {
-      console.log('Received inventory update:', data);
-      // Invalidate the inventory query to trigger a refetch
+      console.log('Inventory updated:', data);
       queryClient.invalidateQueries('inventory');
     });
 
-    // Handle experiment updates
     socketIo.on('experiments_updated', (data) => {
-      console.log('Received experiment update:', data);
+      console.log('Experiments updated:', data);
       queryClient.invalidateQueries('experiments');
     });
 
-    // Handle sample updates
-    socketIo.on('samples_updated', (data) => {
-      console.log('Received sample update:', data);
-      queryClient.invalidateQueries('samples');
+    socketIo.on('tests_updated', (data) => {
+      console.log('Tests updated:', data);
+      queryClient.invalidateQueries('tests');
     });
 
-    // Handle test updates
-    socketIo.on('tests_updated', (data) => {
-      console.log('Received test update:', data);
-      queryClient.invalidateQueries('tests');
+    socketIo.on('users_updated', (data) => {
+      console.log('Users updated:', data);
+      queryClient.invalidateQueries('users');
+    });
+
+    socketIo.on('locations_updated', (data) => {
+      console.log('Locations updated:', data);
+      queryClient.invalidateQueries('locations');
     });
 
     // Store the socket instance

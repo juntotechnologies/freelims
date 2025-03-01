@@ -13,7 +13,6 @@ socket_app = socketio.ASGIApp(sio, socketio_path='')
 connected_clients: Dict[str, Set[str]] = {
     'inventory': set(),
     'experiments': set(),
-    'samples': set(),
     'tests': set(),
     'users': set(),
     'locations': set(),
