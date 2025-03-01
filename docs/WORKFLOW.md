@@ -17,15 +17,12 @@ This will install all dependencies, set up the database directories, and configu
 ### 2. Start the Development Environment
 
 ```bash
-# Start both backend and frontend servers
-./scripts/dev/run_dev.sh
-
-# If you encounter issues, use the fix script
-./scripts/dev/fix_dev_environment.sh
-
-# For a completely fresh start (stops all processes and starts clean)
-./scripts/dev/clean_start.sh
+./freelims.sh system dev start
 ```
+
+This command starts both the backend and frontend development servers:
+- Backend: http://localhost:8001
+- Frontend: http://localhost:3001
 
 ### 3. Make and Test Changes
 
@@ -264,13 +261,15 @@ When moving from development to production:
 
 ## Recommended Workflow Summary
 
-1. **Develop locally** using `run_dev.sh`
-2. **Test thoroughly** in development environment
-3. **Commit changes** to version control
-4. **Create a production build** of the frontend
-5. **Deploy to production** using deployment scripts
-6. **Verify the deployment** works correctly
-7. **Monitor** the production application
+1. **Develop locally** using `./freelims.sh system dev start`
+2. **Make changes** to source code
+3. **Test locally** in the development environment
+4. **Commit changes** with descriptive messages
+5. **Push to your branch** for review
+6. **Create a production build** of the frontend
+7. **Deploy to production** using deployment scripts
+8. **Verify the deployment** works correctly
+9. **Monitor** the production application
 
 ## Emergency Rollback
 

@@ -1,10 +1,11 @@
 # FreeLIMS Script Migration Guide
 
-This guide helps you transition from the old script structure to the new consolidated management system.
+> **IMPORTANT UPDATE**: All backward compatibility features have been removed.
+> Only the new command structure with `freelims.sh` is now supported.
 
 ## Overview
 
-The FreeLIMS codebase has undergone script consolidation to improve maintainability, reduce duplication, and provide a consistent interface. This guide explains how to transition from the old script names to the new management system.
+The FreeLIMS codebase has undergone script consolidation to improve maintainability, reduce duplication, and provide a consistent interface. This guide documents the transition from the old script names to the new management system.
 
 ## Key Changes
 
@@ -38,27 +39,6 @@ Below is a mapping of old script names to their equivalents in the new system:
 | `./setup_dev_db.sh` | `./freelims.sh db dev init` |
 | `./check_database_config.sh` | `./freelims.sh db check-config` |
 
-## Compatibility
-
-For backward compatibility, we've created symlinks that maintain the old script names but redirect to the new system:
-
-```bash
-# These old commands continue to work but use the new system internally
-./run_dev.sh
-./stop_dev.sh
-./restart_system.sh
-./create_admin_user.sh
-./clear_users.sh
-./setup.sh
-./deploy.sh
-./fix_dev_environment.sh
-./clean_start.sh
-./setup_dev_db.sh
-./check_database_config.sh
-```
-
-When using these compatibility scripts, you'll see a notification suggesting the new command format to use in the future.
-
 ## Benefits of the New Structure
 
 The new script structure offers several advantages:
@@ -70,9 +50,9 @@ The new script structure offers several advantages:
 5. **Better port management**: Standardized port handling across all scripts
 6. **Organized Directory Structure**: Scripts organized by function in dedicated directories
 
-## Examples of New Commands
+## Examples of Common Commands
 
-Here are examples of common operations using the new command structure:
+Here are examples of common operations using the command structure:
 
 ```bash
 # Start development environment
@@ -103,11 +83,6 @@ For more detailed information about each category of commands, see:
 - [Database Management Documentation](scripts/db/README.md)
 - [MANAGEMENT_SYSTEM.md](MANAGEMENT_SYSTEM.md) - Full documentation of the management system
 
-## Gradual Migration
+## Note for CI/CD Pipelines and Automation
 
-You can gradually migrate to the new system:
-
-1. Start by using the new commands for new operations
-2. Continue using compatibility scripts for familiar workflows
-3. Gradually transition to the new command structure
-4. Update any automation or documentation to use the new format 
+If you have any CI/CD pipelines, automated tests, or other systems that used the old script names, make sure to update them to use the new command structure. The old script names are no longer supported.

@@ -1,88 +1,27 @@
+# FreeLIMS - Consolidated .gitignore
+# -----------------------------------------------------------------------------
+
 # Dependencies
+# -----------------------------------------------------------------------------
+# Node.js
 node_modules/
 /.pnp
 .pnp.js
-backend/venv/
-venv/
-__pycache__/
-*.py[cod]
-
-# Testing
-/coverage
-
-# Production
-/build
-/dist
-build/
-dist/
-frontend/build/
-
-# Misc
-.DS_Store
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-*.env
-auth.json
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-*.log
-logs/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# Cache
-.cache/
-frontend/node_modules/.cache/
-
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# Sensitive information
-**/*.pem
-**/*.key
-**/*.p12
-**/*.pfx
-**/*.cer
-**/*.crt
-**/private_key*
-**/*.der
-**/*.csr
-**/secrets.*
-**/credentials.*
-**/password*
-
-# Large files
-*.pack
-*.map
-*.woff
-*.woff2
-*.eot
-*.ttf
-*.mp4
-*.tgz
-*.gz
-*.zip
-*.rar
 
 # Python
+__pycache__/
+*.py[cod]
 *$py.class
 *.so
 .Python
-build/
+backend/venv/
+venv/
+env/
+ENV/
+.venv/
+.env/
+.env3/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -96,42 +35,97 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-venv/
-env/
-ENV/
-.venv/
-.env/
-.env3/
 backend/*.pyc
 backend/**/__pycache__/
 backend/**/*.pyc
 
-# Database
-*.sql
-*.dump
+# Build and Distribution
+# -----------------------------------------------------------------------------
+/build
+/dist
+build/
+dist/
+frontend/build/
 
-# IDE
+# Environment and Configuration
+# -----------------------------------------------------------------------------
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+auth.json
+
+# Logs and Debugging
+# -----------------------------------------------------------------------------
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+logs/
+
+# IDE and Editor files
+# -----------------------------------------------------------------------------
+# Visual Studio Code
+.vscode/
+
+# JetBrains
+.idea/
+
+# Vim
+*.swp
+*.swo
+
+# Eclipse
 .project
 .classpath
 .settings/
+
+# Other
 *.tmproj
 *.tmproject
 .vs/
 .history/
 
-# Cache
+# Cache files
+# -----------------------------------------------------------------------------
+.cache/
+frontend/node_modules/.cache/
 .eslintcache
 .stylelintcache
 .parcel-cache
 .sass-cache/
 .tmp/
 
-# Local files
-.local/
-.data/
-backups/
+# Database files
+# -----------------------------------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+*.dump
 
-# System files
+# Sensitive information
+# -----------------------------------------------------------------------------
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.cer
+**/*.crt
+**/private_key*
+**/*.der
+**/*.csr
+**/secrets.*
+**/credentials.*
+**/password*
+
+# Operating System files
+# -----------------------------------------------------------------------------
+# macOS
+.DS_Store
 ._*
 .DocumentRevisions-V100/
 .fseventsd/
@@ -139,4 +133,49 @@ backups/
 .TemporaryItems/
 .Trashes/
 .VolumeIcon.icns
-ehthumbs.db 
+
+# Windows
+ehthumbs.db
+Thumbs.db
+
+# Backup and local files
+# -----------------------------------------------------------------------------
+.local/
+.data/
+backups/
+**/backup*
+**/*.bak
+**/*.backup
+**/*.old
+
+# Large files and assets
+# -----------------------------------------------------------------------------
+*.pack
+*.map
+*.woff
+*.woff2
+*.eot
+*.ttf
+*.mp4
+*.tgz
+*.gz
+*.zip
+*.rar
+
+# System-specific files (from enhanced gitignore)
+# -----------------------------------------------------------------------------
+# Note: Consider if these are really needed or too broad
+# Local paths
+# **/Users/shaun/**  # Commented out - too broad
+# **/Users/Shared/** # Commented out - too broad
+# **/SDrive/**       # Only if needed
+# **/ADrive/**       # Only if needed
+
+# Local network information - likely not needed for most users
+# **/192.168.*
+# **/10.*.*.*
+# **/172.16.*.*  through  **/172.31.*.*
+
+# Environment-specific configuration
+# **/CIT-MacMini*
+# **/cit-office* 

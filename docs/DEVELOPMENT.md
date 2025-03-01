@@ -59,50 +59,24 @@ python -m alembic upgrade head
 
 ## Running the Application
 
-### Using the Development Scripts
+Start the development environment:
 
-We provide several scripts to simplify the development workflow:
+```bash
+./freelims.sh system dev start
+```
 
-1. **Start the Development Environment**:
-   ```bash
-   ./scripts/dev/run_dev.sh
-   ```
-   This will start both the backend and frontend servers.
+This command will:
+1. Check if the required ports are available
+2. Install backend dependencies if needed
+3. Copy the development environment variables
+4. Start the backend server on port 8001
+5. Start the frontend server on port 3001
 
-2. **Fix Common Development Issues**:
-   ```bash
-   ./scripts/dev/fix_dev_environment.sh
-   ```
-   This script addresses common issues with the development environment by stopping processes, cleaning up environment files, and restarting services.
+To stop the development environment:
 
-3. **Clean Start**:
-   ```bash
-   ./scripts/dev/clean_start.sh
-   ```
-   This script stops any running FreeLIMS processes and starts the development environment with a clean slate.
-
-4. **Stop the Development Environment**:
-   ```bash
-   ./scripts/dev/stop_dev.sh
-   ```
-   This will stop both the backend and frontend servers.
-
-### Manual Startup
-
-If you prefer to start the servers manually:
-
-1. **Backend**:
-   ```bash
-   cd backend
-   source venv/bin/activate
-   python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-2. **Frontend**:
-   ```bash
-   cd frontend
-   npm start
-   ```
+```bash
+./freelims.sh system dev stop
+```
 
 ## Accessing the Application
 
