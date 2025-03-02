@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [windows-latest, macos-latest]
         python-version: ['3.9', '3.10']
       fail-fast: false
 
@@ -25,6 +25,7 @@ jobs:
         
     - name: Ensure script is executable
       run: chmod +x freelims.sh
+      shell: bash
       
     - name: Install dependencies
       run: |
@@ -34,28 +35,28 @@ jobs:
         pip install -r backend/requirements.txt
         # Additional dependencies for test/python directory
         pip install python-socketio requests "python-socketio[asyncio_client]"
+      shell: bash
         
     - name: Configure environment for Python tests
       run: |
         # Create a mock version of the socketio module in the test dir
         mkdir -p test/python/mocks
         touch test/python/mocks/__init__.py
-        cat > test/python/mocks/socketio_mock.py << 'EOF'
-        # Mock SocketIO module for testing
-        class AsyncServer:
-            def __init__(self, async_mode='asgi', cors_allowed_origins='*'):
-                self.async_mode = async_mode
-                self.cors_allowed_origins = cors_allowed_origins
-        
-            async def emit(self, event, data, room=None):
-                print(f"Mock emit: {event}, {data}, room={room}")
-                return True
-        
-        class ASGIApp:
-            def __init__(self, sio, socketio_path=''):
-                self.sio = sio
-                self.socketio_path = socketio_path
-        EOF
+        echo "# Mock SocketIO module for testing" > test/python/mocks/socketio_mock.py
+        echo "class AsyncServer:" >> test/python/mocks/socketio_mock.py
+        echo "    def __init__(self, async_mode='asgi', cors_allowed_origins='*'):" >> test/python/mocks/socketio_mock.py
+        echo "        self.async_mode = async_mode" >> test/python/mocks/socketio_mock.py
+        echo "        self.cors_allowed_origins = cors_allowed_origins" >> test/python/mocks/socketio_mock.py
+        echo "" >> test/python/mocks/socketio_mock.py
+        echo "    async def emit(self, event, data, room=None):" >> test/python/mocks/socketio_mock.py
+        echo "        print(f\"Mock emit: {event}, {data}, room={room}\")" >> test/python/mocks/socketio_mock.py
+        echo "        return True" >> test/python/mocks/socketio_mock.py
+        echo "" >> test/python/mocks/socketio_mock.py
+        echo "class ASGIApp:" >> test/python/mocks/socketio_mock.py
+        echo "    def __init__(self, sio, socketio_path=''):" >> test/python/mocks/socketio_mock.py
+        echo "        self.sio = sio" >> test/python/mocks/socketio_mock.py
+        echo "        self.socketio_path = socketio_path" >> test/python/mocks/socketio_mock.py
+      shell: bash
         
     - name: Create directory structure for tests
       run: |
@@ -70,211 +71,216 @@ jobs:
         touch scripts/system/dev/run_dev_frontend.sh
         touch service_files/freelims-dev-backend.service
         touch service_files/freelims-dev-frontend.service
-        chmod +x scripts/system/dev/run_dev_backend.sh
-        chmod +x scripts/system/dev/run_dev_frontend.sh
+        
+        # Make script files executable
+        chmod +x scripts/system/dev/run_dev_backend.sh 2>/dev/null || true
+        chmod +x scripts/system/dev/run_dev_frontend.sh 2>/dev/null || true
+      shell: bash
         
     - name: Create test port_config.sh
       run: |
-        cat > port_config.sh << 'EOF'
-        #!/bin/bash
-        # FreeLIMS Port Configuration (for testing)
-        DEV_BACKEND_PORT=8801
-        DEV_FRONTEND_PORT=3801
-        PROD_BACKEND_PORT=8802
-        PROD_FRONTEND_PORT=3802
-
-        # Check if a port is in use
-        is_port_in_use() {
-            local port=$1
-            if command -v lsof >/dev/null 2>&1; then
-                if lsof -i :$port -t >/dev/null 2>&1; then
-                    return 0  # Port is in use
-                else
-                    return 1  # Port is free
-                fi
-            elif command -v netstat >/dev/null 2>&1; then
-                if netstat -tuln | grep -q ":$port "; then
-                    return 0  # Port is in use
-                else
-                    return 1  # Port is free
-                fi
-            else
-                echo "Error: Cannot check port usage; neither lsof nor netstat available."
-                return 2  # Error condition
-            fi
-        }
-
-        # Get the process IDs using a specific port
-        get_process_on_port() {
-            local port=$1
-            if command -v lsof >/dev/null 2>&1; then
-                lsof -i :$port -t
-            elif command -v netstat >/dev/null 2>&1 && command -v grep >/dev/null 2>&1 && command -v awk >/dev/null 2>&1; then
-                netstat -tuln | grep ":$port " | awk '{print $7}'
-            else
-                echo "Error: Cannot get process; neither lsof nor netstat available."
-                return 1
-            fi
-        }
-
-        # Kill a process safely
-        safe_kill_process_on_port() {
-            local port=$1
-            local force=$2
-            
-            local pids=$(get_process_on_port $port)
-            if [ -z "$pids" ]; then
-                echo "No process found on port $port"
-                return 1
-            fi
-            
-            for pid in $pids; do
-                if [ "$force" = "yes" ]; then
-                    kill -9 $pid 2>/dev/null
-                    echo "Force killed process $pid on port $port"
-                else
-                    kill $pid 2>/dev/null
-                    echo "Terminated process $pid on port $port"
-                fi
-            done
-            
-            return 0
-        }
-        EOF
-        chmod +x port_config.sh
+        mkdir -p $(dirname port_config.sh)
+        echo "#!/bin/bash" > port_config.sh
+        echo "# FreeLIMS Port Configuration (for testing)" >> port_config.sh
+        echo "DEV_BACKEND_PORT=8801" >> port_config.sh
+        echo "DEV_FRONTEND_PORT=3801" >> port_config.sh
+        echo "PROD_BACKEND_PORT=8802" >> port_config.sh
+        echo "PROD_FRONTEND_PORT=3802" >> port_config.sh
+        echo "" >> port_config.sh
+        echo "# Check if a port is in use" >> port_config.sh
+        echo "is_port_in_use() {" >> port_config.sh
+        echo "    local port=$1" >> port_config.sh
+        echo "    if command -v lsof >/dev/null 2>&1; then" >> port_config.sh
+        echo "        if lsof -i :$port -t >/dev/null 2>&1; then" >> port_config.sh
+        echo "            return 0  # Port is in use" >> port_config.sh
+        echo "        else" >> port_config.sh
+        echo "            return 1  # Port is free" >> port_config.sh
+        echo "        fi" >> port_config.sh
+        echo "    elif command -v netstat >/dev/null 2>&1; then" >> port_config.sh
+        echo "        if netstat -tuln | grep -q ":$port "; then" >> port_config.sh
+        echo "            return 0  # Port is in use" >> port_config.sh
+        echo "        else" >> port_config.sh
+        echo "            return 1  # Port is free" >> port_config.sh
+        echo "        fi" >> port_config.sh
+        echo "    else" >> port_config.sh
+        echo "        echo "Error: Cannot check port usage; neither lsof nor netstat available."" >> port_config.sh
+        echo "        return 2  # Error condition" >> port_config.sh
+        echo "    fi" >> port_config.sh
+        echo "}" >> port_config.sh
+        echo "" >> port_config.sh
+        echo "# Get the process IDs using a specific port" >> port_config.sh
+        echo "get_process_on_port() {" >> port_config.sh
+        echo "    local port=$1" >> port_config.sh
+        echo "    if command -v lsof >/dev/null 2>&1; then" >> port_config.sh
+        echo "        lsof -i :$port -t" >> port_config.sh
+        echo "    elif command -v netstat >/dev/null 2>&1 && command -v grep >/dev/null 2>&1 && command -v awk >/dev/null 2>&1; then" >> port_config.sh
+        echo "        netstat -tuln | grep ":$port " | awk '{print $7}'" >> port_config.sh
+        echo "    else" >> port_config.sh
+        echo "        echo "Error: Cannot get process; neither lsof nor netstat available."" >> port_config.sh
+        echo "        return 1" >> port_config.sh
+        echo "    fi" >> port_config.sh
+        echo "}" >> port_config.sh
+        echo "" >> port_config.sh
+        echo "# Kill a process safely" >> port_config.sh
+        echo "safe_kill_process_on_port() {" >> port_config.sh
+        echo "    local port=$1" >> port_config.sh
+        echo "    local force=$2" >> port_config.sh
+        echo "    " >> port_config.sh
+        echo "    local pids=$(get_process_on_port $port)" >> port_config.sh
+        echo "    if [ -z "$pids" ]; then" >> port_config.sh
+        echo "        echo "No process found on port $port"" >> port_config.sh
+        echo "        return 1" >> port_config.sh
+        echo "    fi" >> port_config.sh
+        echo "    " >> port_config.sh
+        echo "    for pid in $pids; do" >> port_config.sh
+        echo "        if [ "$force" = "yes" ]; then" >> port_config.sh
+        echo "            kill -9 $pid 2>/dev/null" >> port_config.sh
+        echo "            echo "Force killed process $pid on port $port"" >> port_config.sh
+        echo "        else" >> port_config.sh
+        echo "            kill $pid 2>/dev/null" >> port_config.sh
+        echo "            echo "Terminated process $pid on port $port"" >> port_config.sh
+        echo "        fi" >> port_config.sh
+        echo "    done" >> port_config.sh
+        echo "    " >> port_config.sh
+        echo "    return 0" >> port_config.sh
+        echo "}" >> port_config.sh
+        
+        # Make script executable
+        chmod +x port_config.sh 2>/dev/null || true
+      shell: bash
         
     - name: Run unit tests
       run: |
         pytest tests/unit/ -v
+      shell: bash
         
     - name: Create dummy script files for integration tests
       run: |
         mkdir -p scripts/system
-        cat > scripts/system/manage.sh << 'EOF'
-        #!/bin/bash
-        # Dummy manage.sh for testing
-        
-        # Environment variables used
-        DEV_BACKEND_PORT=${DEV_BACKEND_PORT:-8001}
-        DEV_FRONTEND_PORT=${DEV_FRONTEND_PORT:-3001}
-        PROD_BACKEND_PORT=${PROD_BACKEND_PORT:-8002}
-        PROD_FRONTEND_PORT=${PROD_FRONTEND_PORT:-3002}
-        
-        manage_system() {
-            local env=$1
-            local cmd=$2
-            
-            echo "Managing system: $env $cmd"
-            
-            case "$cmd" in
-                start)
-                    echo "Starting $env environment"
-                    return 0
-                    ;;
-                stop)
-                    echo "Stopping $env environment"
-                    return 0
-                    ;;
-                restart)
-                    echo "Restarting $env environment"
-                    return 0
-                    ;;
-                status)
-                    echo "Status of $env environment"
-                    echo "Environment Status: OK (mock)"
-                    return 0
-                    ;;
-                *)
-                    echo "Unknown command: $cmd"
-                    return 1
-                    ;;
-            esac
-        }
-        EOF
-        chmod +x scripts/system/manage.sh
+        echo "#!/bin/bash" > scripts/system/manage.sh
+        echo "# Dummy manage.sh for testing" >> scripts/system/manage.sh
+        echo "" >> scripts/system/manage.sh
+        echo "# Environment variables used" >> scripts/system/manage.sh
+        echo "DEV_BACKEND_PORT=${DEV_BACKEND_PORT:-8001}" >> scripts/system/manage.sh
+        echo "DEV_FRONTEND_PORT=${DEV_FRONTEND_PORT:-3001}" >> scripts/system/manage.sh
+        echo "PROD_BACKEND_PORT=${PROD_BACKEND_PORT:-8002}" >> scripts/system/manage.sh
+        echo "PROD_FRONTEND_PORT=${PROD_FRONTEND_PORT:-3002}" >> scripts/system/manage.sh
+        echo "" >> scripts/system/manage.sh
+        echo "manage_system() {" >> scripts/system/manage.sh
+        echo "    local env=$1" >> scripts/system/manage.sh
+        echo "    local cmd=$2" >> scripts/system/manage.sh
+        echo "    " >> scripts/system/manage.sh
+        echo "    echo "Managing system: $env $cmd"" >> scripts/system/manage.sh
+        echo "    " >> scripts/system/manage.sh
+        echo "    case "$cmd" in" >> scripts/system/manage.sh
+        echo "        start)" >> scripts/system/manage.sh
+        echo "            echo "Starting $env environment"" >> scripts/system/manage.sh
+        echo "            return 0" >> scripts/system/manage.sh
+        echo "            ;;
+        echo "        stop)" >> scripts/system/manage.sh
+        echo "            echo "Stopping $env environment"" >> scripts/system/manage.sh
+        echo "            return 0" >> scripts/system/manage.sh
+        echo "            ;;
+        echo "        restart)" >> scripts/system/manage.sh
+        echo "            echo "Restarting $env environment"" >> scripts/system/manage.sh
+        echo "            return 0" >> scripts/system/manage.sh
+        echo "            ;;
+        echo "        status)" >> scripts/system/manage.sh
+        echo "            echo "Status of $env environment"" >> scripts/system/manage.sh
+        echo "            echo "Environment Status: OK (mock)"" >> scripts/system/manage.sh
+        echo "            return 0" >> scripts/system/manage.sh
+        echo "            ;;
+        echo "        *)" >> scripts/system/manage.sh
+        echo "            echo "Unknown command: $cmd"" >> scripts/system/manage.sh
+        echo "            return 1" >> scripts/system/manage.sh
+        echo "            ;;
+        echo "    esac" >> scripts/system/manage.sh
+        echo "}" >> scripts/system/manage.sh
         
         mkdir -p scripts/db
-        cat > scripts/db/manage.sh << 'EOF'
-        #!/bin/bash
-        # Dummy db/manage.sh for testing
-        
-        manage_database() {
-            local env=$1
-            local cmd=$2
-            
-            echo "Managing database: $env $cmd"
-            
-            case "$cmd" in
-                backup)
-                    echo "Backing up $env database"
-                    return 0
-                    ;;
-                restore)
-                    echo "Restoring $env database"
-                    return 0
-                    ;;
-                init)
-                    echo "Initializing $env database"
-                    return 0
-                    ;;
-                migrate)
-                    echo "Migrating $env database"
-                    return 0
-                    ;;
-                *)
-                    echo "Unknown command: $cmd"
-                    return 1
-                    ;;
-            esac
-        }
-        EOF
-        chmod +x scripts/db/manage.sh
+        echo "#!/bin/bash" > scripts/db/manage.sh
+        echo "# Dummy db/manage.sh for testing" >> scripts/db/manage.sh
+        echo "" >> scripts/db/manage.sh
+        echo "manage_database() {" >> scripts/db/manage.sh
+        echo "    local env=$1" >> scripts/db/manage.sh
+        echo "    local cmd=$2" >> scripts/db/manage.sh
+        echo "    " >> scripts/db/manage.sh
+        echo "    echo "Managing database: $env $cmd"" >> scripts/db/manage.sh
+        echo "    " >> scripts/db/manage.sh
+        echo "    case "$cmd" in" >> scripts/db/manage.sh
+        echo "        backup)" >> scripts/db/manage.sh
+        echo "            echo "Backing up $env database"" >> scripts/db/manage.sh
+        echo "            return 0" >> scripts/db/manage.sh
+        echo "            ;;
+        echo "        restore)" >> scripts/db/manage.sh
+        echo "            echo "Restoring $env database"" >> scripts/db/manage.sh
+        echo "            return 0" >> scripts/db/manage.sh
+        echo "            ;;
+        echo "        init)" >> scripts/db/manage.sh
+        echo "            echo "Initializing $env database"" >> scripts/db/manage.sh
+        echo "            return 0" >> scripts/db/manage.sh
+        echo "            ;;
+        echo "        migrate)" >> scripts/db/manage.sh
+        echo "            echo "Migrating $env database"" >> scripts/db/manage.sh
+        echo "            return 0" >> scripts/db/manage.sh
+        echo "            ;;
+        echo "        *)" >> scripts/db/manage.sh
+        echo "            echo "Unknown command: $cmd"" >> scripts/db/manage.sh
+        echo "            return 1" >> scripts/db/manage.sh
+        echo "            ;;
+        echo "    esac" >> scripts/db/manage.sh
+        echo "}" >> scripts/db/manage.sh
         
         mkdir -p scripts/user
-        cat > scripts/user/manage.sh << 'EOF'
-        #!/bin/bash
-        # Dummy user/manage.sh for testing
+        echo "#!/bin/bash" > scripts/user/manage.sh
+        echo "# Dummy user/manage.sh for testing" >> scripts/user/manage.sh
+        echo "" >> scripts/user/manage.sh
+        echo "manage_users() {" >> scripts/user/manage.sh
+        echo "    local env=$1" >> scripts/user/manage.sh
+        echo "    local cmd=$2" >> scripts/user/manage.sh
+        echo "    " >> scripts/user/manage.sh
+        echo "    echo "Managing users: $env $cmd"" >> scripts/user/manage.sh
+        echo "    " >> scripts/user/manage.sh
+        echo "    case "$cmd" in" >> scripts/user/manage.sh
+        echo "        list)" >> scripts/user/manage.sh
+        echo "            echo "Listing users in $env"" >> scripts/user/manage.sh
+        echo "            return 0" >> scripts/user/manage.sh
+        echo "            ;;
+        echo "        create)" >> scripts/user/manage.sh
+        echo "            echo "Creating user in $env"" >> scripts/user/manage.sh
+        echo "            return 0" >> scripts/user/manage.sh
+        echo "            ;;
+        echo "        delete)" >> scripts/user/manage.sh
+        echo "            echo "Deleting user in $env"" >> scripts/user/manage.sh
+        echo "            return 0" >> scripts/user/manage.sh
+        echo "            ;;
+        echo "        clear)" >> scripts/user/manage.sh
+        echo "            echo "Clearing users in $env"" >> scripts/user/manage.sh
+        echo "            return 0" >> scripts/user/manage.sh
+        echo "            ;;
+        echo "        *)" >> scripts/user/manage.sh
+        echo "            echo "Unknown command: $cmd"" >> scripts/user/manage.sh
+        echo "            return 1" >> scripts/user/manage.sh
+        echo "            ;;
+        echo "    esac" >> scripts/user/manage.sh
+        echo "}" >> scripts/user/manage.sh
         
-        manage_users() {
-            local env=$1
-            local cmd=$2
-            
-            echo "Managing users: $env $cmd"
-            
-            case "$cmd" in
-                list)
-                    echo "Listing users in $env"
-                    return 0
-                    ;;
-                create)
-                    echo "Creating user in $env"
-                    return 0
-                    ;;
-                delete)
-                    echo "Deleting user in $env"
-                    return 0
-                    ;;
-                clear)
-                    echo "Clearing users in $env"
-                    return 0
-                    ;;
-                *)
-                    echo "Unknown command: $cmd"
-                    return 1
-                    ;;
-            esac
-        }
-        EOF
-        chmod +x scripts/user/manage.sh
+        # Make scripts executable
+        chmod +x scripts/system/manage.sh 2>/dev/null || true
+        chmod +x scripts/db/manage.sh 2>/dev/null || true
+        chmod +x scripts/user/manage.sh 2>/dev/null || true
+      shell: bash
         
     - name: Run integration tests with mocked components
       run: |
         pytest tests/integration/ -v --junitxml=test-results.xml
+      shell: bash
         
     - name: Generate coverage report
       run: |
         # Exclude the Python test directory when generating coverage
         pytest --cov=. --cov-report=xml --ignore=test/python/ --ignore=venv/
+      shell: bash
         
     - name: Upload test results
       uses: actions/upload-artifact@v4
