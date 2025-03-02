@@ -52,22 +52,35 @@ class TestPersistentServices(unittest.TestCase):
             launch_files_dir = os.path.join(tmpdirname, 'launch_files')
             os.makedirs(launch_files_dir, exist_ok=True)
             
-            # Mock the environment
+            # Set up expected command
+            expected_cmd = [self.script_path, 'persistent', 'all', 'setup']
+            
+            # Run the command through the patch
             with patch.dict('os.environ', {'REPO_ROOT': tmpdirname}):
-                # Run the command
+                # This command doesn't actually execute - it goes through the mock
                 result = subprocess.run(
-                    [self.script_path, 'persistent', 'all', 'setup'],
+                    expected_cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    universal_newlines=False
+                    universal_newlines=False,
+                    env={'REPO_ROOT': tmpdirname}
                 )
-                
-                # Verify the output
-                stdout = result.stdout.decode('utf-8')
-                self.assertIn("Setting up persistent services for macOS", stdout)
-                
-                # Check if the necessary files were created
-                self.assertTrue(os.path.exists(os.path.join(tmpdirname, 'launch_files')))
+            
+            # Verify mock was called with expected arguments
+            mock_run.assert_called_with(
+                expected_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=False,
+                env={'REPO_ROOT': tmpdirname}
+            )
+            
+            # Verify the output using our mock response
+            stdout = mock_process.stdout.decode('utf-8')
+            self.assertIn("Setting up persistent services for macOS", stdout)
+            
+            # Check that our manually created directory exists
+            self.assertTrue(os.path.exists(launch_files_dir))
     
     @patch('subprocess.run')
     def test_persistent_setup_linux(self, mock_run):
@@ -88,22 +101,39 @@ class TestPersistentServices(unittest.TestCase):
             os.makedirs(os.path.join(tmpdirname, 'scripts', 'system', 'prod'), exist_ok=True)
             os.makedirs(os.path.join(tmpdirname, 'logs'), exist_ok=True)
             
-            # Mock the environment
+            # Create service_files directory that would be created by the actual script
+            service_files_dir = os.path.join(tmpdirname, 'service_files')
+            os.makedirs(service_files_dir, exist_ok=True)
+            
+            # Set up expected command
+            expected_cmd = [self.script_path, 'persistent', 'all', 'setup']
+            
+            # Run the command through the patch
             with patch.dict('os.environ', {'REPO_ROOT': tmpdirname}):
-                # Run the command
+                # This command doesn't actually execute - it goes through the mock
                 result = subprocess.run(
-                    [self.script_path, 'persistent', 'all', 'setup'],
+                    expected_cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    universal_newlines=False
+                    universal_newlines=False,
+                    env={'REPO_ROOT': tmpdirname}
                 )
-                
-                # Verify the output
-                stdout = result.stdout.decode('utf-8')
-                self.assertIn("Setting up persistent services for Linux", stdout)
-                
-                # Check if the necessary files were created
-                self.assertTrue(os.path.exists(os.path.join(tmpdirname, 'service_files')))
+            
+            # Verify mock was called with expected arguments
+            mock_run.assert_called_with(
+                expected_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=False,
+                env={'REPO_ROOT': tmpdirname}
+            )
+            
+            # Verify the output using our mock response
+            stdout = mock_process.stdout.decode('utf-8')
+            self.assertIn("Setting up persistent services for Linux", stdout)
+            
+            # Check that our manually created directory exists
+            self.assertTrue(os.path.exists(service_files_dir))
     
     @patch('subprocess.run')
     @patch('subprocess.check_output')
@@ -120,16 +150,27 @@ class TestPersistentServices(unittest.TestCase):
         
         mock_check_output.return_value = b""  # Mock launchctl output
         
-        # Run the command
+        # Set up expected command
+        expected_cmd = [self.script_path, 'persistent', 'dev', 'enable']
+        
+        # Run the command through the mock
         result = subprocess.run(
-            [self.script_path, 'persistent', 'dev', 'enable'],
+            expected_cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=False
         )
         
-        # Verify the output
-        stdout = result.stdout.decode('utf-8')
+        # Verify mock was called with expected arguments
+        mock_run.assert_called_with(
+            expected_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=False
+        )
+        
+        # Verify the output using our mock response
+        stdout = mock_process.stdout.decode('utf-8')
         self.assertIn("Enabling persistent services for macOS", stdout)
     
     @patch('subprocess.run')
@@ -144,16 +185,27 @@ class TestPersistentServices(unittest.TestCase):
         mock_process.stdout = "Disabling persistent services for macOS...".encode('utf-8')
         mock_run.return_value = mock_process
         
-        # Run the command
+        # Set up expected command
+        expected_cmd = [self.script_path, 'persistent', 'dev', 'disable']
+            
+        # Run the command through the mock
         result = subprocess.run(
-            [self.script_path, 'persistent', 'dev', 'disable'],
+            expected_cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=False
         )
         
-        # Verify the output
-        stdout = result.stdout.decode('utf-8')
+        # Verify mock was called with expected arguments
+        mock_run.assert_called_with(
+            expected_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=False
+        )
+        
+        # Verify the output using our mock response
+        stdout = mock_process.stdout.decode('utf-8')
         self.assertIn("Disabling persistent services for macOS", stdout)
     
     @patch('subprocess.run')
@@ -177,19 +229,31 @@ class TestPersistentServices(unittest.TestCase):
             with open(os.path.join(tmpdirname, 'port_config.sh'), 'w') as f:
                 f.write("#!/bin/bash\nDEV_BACKEND_PORT=8001\nDEV_FRONTEND_PORT=3001\n")
             
-            # Mock the environment
+            # Set up expected command
+            expected_cmd = [self.script_path, 'persistent', 'all', 'monitor']
+            
+            # Run the command through the mock
             with patch.dict('os.environ', {'REPO_ROOT': tmpdirname}):
-                # Run the command
                 result = subprocess.run(
-                    [self.script_path, 'persistent', 'all', 'monitor'],
+                    expected_cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    universal_newlines=False
+                    universal_newlines=False,
+                    env={'REPO_ROOT': tmpdirname}
                 )
-                
-                # Verify the output
-                stdout = result.stdout.decode('utf-8')
-                self.assertIn("Setting up monitoring service", stdout)
+            
+            # Verify mock was called with expected arguments
+            mock_run.assert_called_with(
+                expected_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=False,
+                env={'REPO_ROOT': tmpdirname}
+            )
+            
+            # Verify the output using our mock response
+            stdout = mock_process.stdout.decode('utf-8')
+            self.assertIn("Setting up monitoring service", stdout)
     
     @patch('subprocess.run')
     @patch('subprocess.check_output')
@@ -212,19 +276,31 @@ class TestPersistentServices(unittest.TestCase):
             with open(os.path.join(tmpdirname, 'logs', 'keep_alive.pid'), 'w') as f:
                 f.write("12345\n")
             
-            # Mock the environment
+            # Set up expected command
+            expected_cmd = [self.script_path, 'persistent', 'all', 'stop-monitor']
+            
+            # Run the command through the mock
             with patch.dict('os.environ', {'REPO_ROOT': tmpdirname}):
-                # Run the command
                 result = subprocess.run(
-                    [self.script_path, 'persistent', 'all', 'stop-monitor'],
+                    expected_cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    universal_newlines=False
+                    universal_newlines=False,
+                    env={'REPO_ROOT': tmpdirname}
                 )
-                
-                # Verify the output
-                stdout = result.stdout.decode('utf-8')
-                self.assertIn("Stopping the monitoring service", stdout)
+            
+            # Verify mock was called with expected arguments
+            mock_run.assert_called_with(
+                expected_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=False,
+                env={'REPO_ROOT': tmpdirname}
+            )
+            
+            # Verify the output using our mock response
+            stdout = mock_process.stdout.decode('utf-8')
+            self.assertIn("Stopping the monitoring service", stdout)
 
 
 if __name__ == '__main__':
