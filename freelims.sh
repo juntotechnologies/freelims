@@ -5,7 +5,7 @@
 # This script serves as the entry point for all FreeLIMS operations
 # ----------------------------------------------------------------------------
 
-VERSION="1.0.1"
+VERSION="1.1.0"
 
 # Determine the script and repository paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -119,9 +119,32 @@ print_status() {
     fi
 }
 
-# Log function
+# Log function with better formatting
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$REPO_ROOT/logs/freelims.log"
+    local message="$1"
+    local log_file="$REPO_ROOT/logs/freelims.log"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo -e "[$timestamp] $message" | tee -a "$log_file"
+}
+
+# Error handling function
+handle_error() {
+    local message="$1"
+    local exit_code="${2:-1}"  # Default exit code is 1
+    
+    print_status "error" "$message"
+    log "ERROR: $message"
+    
+    if [ "$exit_code" != "continue" ]; then
+        exit "$exit_code"
+    fi
+}
+
+# Success message function
+print_success() {
+    local message="$1"
+    print_status "success" "$message"
+    log "SUCCESS: $message"
 }
 
 # Setup persistent services
@@ -148,137 +171,101 @@ setup_persistent_services_mac() {
     echo "Setting up persistent services for macOS..."
     
     # Create necessary directories
-    mkdir -p "$REPO_ROOT/launch_files"
-    mkdir -p "$REPO_ROOT/scripts/system/dev"
-    mkdir -p "$REPO_ROOT/scripts/system/prod"
+    mkdir -p "$REPO_ROOT/launch_files" || handle_error "Failed to create launch_files directory"
+    mkdir -p "$REPO_ROOT/scripts/system/dev" || handle_error "Failed to create dev scripts directory"
+    mkdir -p "$REPO_ROOT/scripts/system/prod" || handle_error "Failed to create prod scripts directory"
+    mkdir -p "$REPO_ROOT/logs" || handle_error "Failed to create logs directory"
     
     # Define LaunchAgents directory
     LAUNCH_AGENTS_DIR=~/Library/LaunchAgents
     
-    # Create run scripts based on environment
-    if [[ "$env" == "dev" || "$env" == "all" ]]; then
-        # Create dev backend run script
-        cat > "$REPO_ROOT/scripts/system/dev/run_dev_backend.sh" << EOF
+    # Common function to create run script
+    create_run_script() {
+        local env_type=$1
+        local script_path="$REPO_ROOT/scripts/system/$env_type/run_${env_type}_backend.sh"
+        local port_var="${env_type^^}_BACKEND_PORT"  # Convert to uppercase
+        local port=${!port_var:-8001}  # Default to 8001 if not defined
+        
+        if [[ "$env_type" == "dev" ]]; then
+            # Create dev backend run script
+            cat > "$script_path" << EOF
 #!/bin/bash
 cd "$REPO_ROOT/backend"
 source venv/bin/activate
 cp .env.development .env
 echo "ENVIRONMENT=development" >> .env
-echo "PORT=8001" >> .env
-exec uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+echo "PORT=$port" >> .env
+exec uvicorn app.main:app --reload --host 0.0.0.0 --port $port
 EOF
-        chmod +x "$REPO_ROOT/scripts/system/dev/run_dev_backend.sh"
-        
-        # Create dev frontend run script
-        cat > "$REPO_ROOT/scripts/system/dev/run_dev_frontend.sh" << EOF
-#!/bin/bash
-cd "$REPO_ROOT/frontend"
-cat > .env.development.local << ENVEOF
-REACT_APP_API_URL=http://localhost:8001/api
-PORT=3001
-ENVEOF
-exec npm start
-EOF
-        chmod +x "$REPO_ROOT/scripts/system/dev/run_dev_frontend.sh"
-        
-        # Create launchd plist for dev backend
-        cat > "$REPO_ROOT/launch_files/com.freelims.dev.backend.plist" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.freelims.dev.backend</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$REPO_ROOT/scripts/system/dev/run_dev_backend.sh</string>
-    </array>
-    <key>WorkingDirectory</key>
-    <string>$REPO_ROOT</string>
-    <key>StandardOutPath</key>
-    <string>$REPO_ROOT/logs/dev_backend.log</string>
-    <key>StandardErrorPath</key>
-    <string>$REPO_ROOT/logs/dev_backend_error.log</string>
-    <key>KeepAlive</key>
-    <true/>
-    <key>RunAtLoad</key>
-    <true/>
-</dict>
-</plist>
-EOF
-
-        # Create launchd plist for dev frontend
-        cat > "$REPO_ROOT/launch_files/com.freelims.dev.frontend.plist" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.freelims.dev.frontend</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$REPO_ROOT/scripts/system/dev/run_dev_frontend.sh</string>
-    </array>
-    <key>WorkingDirectory</key>
-    <string>$REPO_ROOT</string>
-    <key>StandardOutPath</key>
-    <string>$REPO_ROOT/logs/dev_frontend.log</string>
-    <key>StandardErrorPath</key>
-    <string>$REPO_ROOT/logs/dev_frontend_error.log</string>
-    <key>KeepAlive</key>
-    <true/>
-    <key>RunAtLoad</key>
-    <true/>
-</dict>
-</plist>
-EOF
-        print_status "success" "Created dev environment service files"
-    fi
-    
-    if [[ "$env" == "prod" || "$env" == "all" ]]; then
-        # Create prod backend run script
-        cat > "$REPO_ROOT/scripts/system/prod/run_prod_backend.sh" << EOF
+        else
+            # Create prod backend run script
+            cat > "$script_path" << EOF
 #!/bin/bash
 cd "$REPO_ROOT/backend"
 source venv/bin/activate
 cp .env.production .env
 echo "ENVIRONMENT=production" >> .env
-echo "PORT=8002" >> .env
-exec gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8002
+echo "PORT=$port" >> .env
+exec gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$port
 EOF
-        chmod +x "$REPO_ROOT/scripts/system/prod/run_prod_backend.sh"
+        fi
+        chmod +x "$script_path" || handle_error "Failed to make script executable: $script_path"
         
-        # Create prod frontend run script
-        cat > "$REPO_ROOT/scripts/system/prod/run_prod_frontend.sh" << EOF
+        # Create frontend run script
+        port_var="${env_type^^}_FRONTEND_PORT"  # Convert to uppercase
+        port=${!port_var:-3001}  # Default to 3001 if not defined
+        script_path="$REPO_ROOT/scripts/system/$env_type/run_${env_type}_frontend.sh"
+        
+        if [[ "$env_type" == "dev" ]]; then
+            cat > "$script_path" << EOF
+#!/bin/bash
+cd "$REPO_ROOT/frontend"
+cat > .env.development.local << ENVEOF
+REACT_APP_API_URL=http://localhost:$DEV_BACKEND_PORT/api
+PORT=$port
+ENVEOF
+exec npm start
+EOF
+        else
+            cat > "$script_path" << EOF
 #!/bin/bash
 cd "$REPO_ROOT/frontend"
 cat > .env.production.local << ENVEOF
-REACT_APP_API_URL=http://localhost:8002/api
-PORT=3002
+REACT_APP_API_URL=http://localhost:$PROD_BACKEND_PORT/api
+PORT=$port
 NODE_ENV=production
 ENVEOF
-exec npx serve -s build -l 3002
+exec npx serve -s build -l $port
 EOF
-        chmod +x "$REPO_ROOT/scripts/system/prod/run_prod_frontend.sh"
+        fi
+        chmod +x "$script_path" || handle_error "Failed to make script executable: $script_path"
+    }
+    
+    # Common function to create plist file
+    create_plist_file() {
+        local env_type=$1
+        local component=$2  # backend or frontend
+        local label="com.freelims.$env_type.$component"
+        local script_path="$REPO_ROOT/scripts/system/$env_type/run_${env_type}_${component}.sh"
+        local plist_path="$REPO_ROOT/launch_files/$label.plist"
         
-        # Create launchd plist for prod backend
-        cat > "$REPO_ROOT/launch_files/com.freelims.prod.backend.plist" << EOF
+        cat > "$plist_path" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.freelims.prod.backend</string>
+    <string>$label</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$REPO_ROOT/scripts/system/prod/run_prod_backend.sh</string>
+        <string>$script_path</string>
     </array>
     <key>WorkingDirectory</key>
     <string>$REPO_ROOT</string>
     <key>StandardOutPath</key>
-    <string>$REPO_ROOT/logs/prod_backend.log</string>
+    <string>$REPO_ROOT/logs/${env_type}_${component}.log</string>
     <key>StandardErrorPath</key>
-    <string>$REPO_ROOT/logs/prod_backend_error.log</string>
+    <string>$REPO_ROOT/logs/${env_type}_${component}_error.log</string>
     <key>KeepAlive</key>
     <true/>
     <key>RunAtLoad</key>
@@ -286,37 +273,25 @@ EOF
 </dict>
 </plist>
 EOF
-
-        # Create launchd plist for prod frontend
-        cat > "$REPO_ROOT/launch_files/com.freelims.prod.frontend.plist" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.freelims.prod.frontend</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$REPO_ROOT/scripts/system/prod/run_prod_frontend.sh</string>
-    </array>
-    <key>WorkingDirectory</key>
-    <string>$REPO_ROOT</string>
-    <key>StandardOutPath</key>
-    <string>$REPO_ROOT/logs/prod_frontend.log</string>
-    <key>StandardErrorPath</key>
-    <string>$REPO_ROOT/logs/prod_frontend_error.log</string>
-    <key>KeepAlive</key>
-    <true/>
-    <key>RunAtLoad</key>
-    <true/>
-</dict>
-</plist>
-EOF
-        print_status "success" "Created prod environment service files"
+    }
+    
+    # Create run scripts and plist files based on environment
+    if [[ "$env" == "dev" || "$env" == "all" ]]; then
+        create_run_script "dev"
+        create_plist_file "dev" "backend"
+        create_plist_file "dev" "frontend"
+        print_success "Created dev environment service files"
+    fi
+    
+    if [[ "$env" == "prod" || "$env" == "all" ]]; then
+        create_run_script "prod"
+        create_plist_file "prod" "backend"
+        create_plist_file "prod" "frontend"
+        print_success "Created prod environment service files"
     fi
     
     echo ""
-    print_status "success" "Persistent service files created in $REPO_ROOT/launch_files"
+    print_success "Persistent service files created in $REPO_ROOT/launch_files"
     echo ""
     echo "To enable these services, run:"
     echo "  $0 persistent $env enable"
@@ -331,128 +306,144 @@ setup_persistent_services_linux() {
     echo "Setting up persistent services for Linux..."
     
     # Create necessary directories
-    mkdir -p "$REPO_ROOT/service_files"
-    mkdir -p "$REPO_ROOT/scripts/system/dev"
-    mkdir -p "$REPO_ROOT/scripts/system/prod"
+    mkdir -p "$REPO_ROOT/service_files" || handle_error "Failed to create service_files directory"
+    mkdir -p "$REPO_ROOT/scripts/system/dev" || handle_error "Failed to create dev scripts directory"
+    mkdir -p "$REPO_ROOT/scripts/system/prod" || handle_error "Failed to create prod scripts directory"
+    mkdir -p "$REPO_ROOT/logs" || handle_error "Failed to create logs directory"
     
-    # Create run scripts based on environment
-    if [[ "$env" == "dev" || "$env" == "all" ]]; then
-        # Create dev backend run script
-        cat > "$REPO_ROOT/scripts/system/dev/run_dev_backend.sh" << EOF
+    # Common function to create run script
+    create_run_script() {
+        local env_type=$1
+        local script_path="$REPO_ROOT/scripts/system/$env_type/run_${env_type}_backend.sh"
+        local port_var="${env_type^^}_BACKEND_PORT"  # Convert to uppercase
+        local port=${!port_var:-8001}  # Default to 8001 if not defined
+        
+        if [[ "$env_type" == "dev" ]]; then
+            # Create dev backend run script
+            cat > "$script_path" << EOF
 #!/bin/bash
 cd "$REPO_ROOT/backend"
 source venv/bin/activate
 cp .env.development .env
 echo "ENVIRONMENT=development" >> .env
-echo "PORT=8001" >> .env
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+echo "PORT=$port" >> .env
+uvicorn app.main:app --reload --host 0.0.0.0 --port $port
 EOF
-        chmod +x "$REPO_ROOT/scripts/system/dev/run_dev_backend.sh"
+        else
+            # Create prod backend run script
+            cat > "$script_path" << EOF
+#!/bin/bash
+cd "$REPO_ROOT/backend"
+source venv/bin/activate
+cp .env.production .env
+echo "ENVIRONMENT=production" >> .env
+echo "PORT=$port" >> .env
+gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$port
+EOF
+        fi
+        chmod +x "$script_path" || handle_error "Failed to make script executable: $script_path"
         
-        # Create dev frontend run script
-        cat > "$REPO_ROOT/scripts/system/dev/run_dev_frontend.sh" << EOF
+        # Create frontend run script
+        port_var="${env_type^^}_FRONTEND_PORT"  # Convert to uppercase
+        port=${!port_var:-3001}  # Default to 3001 if not defined
+        script_path="$REPO_ROOT/scripts/system/$env_type/run_${env_type}_frontend.sh"
+        
+        if [[ "$env_type" == "dev" ]]; then
+            cat > "$script_path" << EOF
 #!/bin/bash
 cd "$REPO_ROOT/frontend"
 cat > .env.development.local << ENVEOF
-REACT_APP_API_URL=http://localhost:8001/api
-PORT=3001
+REACT_APP_API_URL=http://localhost:$DEV_BACKEND_PORT/api
+PORT=$port
 ENVEOF
 npm start
 EOF
-        chmod +x "$REPO_ROOT/scripts/system/dev/run_dev_frontend.sh"
+        else
+            cat > "$script_path" << EOF
+#!/bin/bash
+cd "$REPO_ROOT/frontend"
+cat > .env.production.local << ENVEOF
+REACT_APP_API_URL=http://localhost:$PROD_BACKEND_PORT/api
+PORT=$port
+NODE_ENV=production
+ENVEOF
+npx serve -s build -l $port
+EOF
+        fi
+        chmod +x "$script_path" || handle_error "Failed to make script executable: $script_path"
+    }
+    
+    # Common function to create systemd service file
+    create_service_file() {
+        local env_type=$1
+        local component=$2  # backend or frontend
+        local label="freelims-$env_type-$component"
+        local script_path="$REPO_ROOT/scripts/system/$env_type/run_${env_type}_${component}.sh"
+        local service_path="$REPO_ROOT/service_files/$label.service"
+        local after_service="network.target"
         
-        # Create systemd service file for dev backend
-        cat > "$REPO_ROOT/service_files/freelims-dev-backend.service" << EOF
+        if [[ "$component" == "frontend" ]]; then
+            after_service="network.target freelims-$env_type-backend.service"
+        fi
+        
+        if [[ "$component" == "backend" ]]; then
+            cat > "$service_path" << EOF
 [Unit]
-Description=FreeLIMS Development Backend
-After=network.target postgresql.service
+Description=FreeLIMS ${env_type^} Backend
+After=$after_service postgresql.service
 
 [Service]
 Type=simple
 User=$(whoami)
 WorkingDirectory=$REPO_ROOT
-ExecStart=$REPO_ROOT/scripts/system/dev/run_dev_backend.sh
+ExecStart=$script_path
 Restart=always
 RestartSec=10
-StandardOutput=append:$REPO_ROOT/logs/dev_backend.log
-StandardError=append:$REPO_ROOT/logs/dev_backend_error.log
+StandardOutput=append:$REPO_ROOT/logs/${env_type}_${component}.log
+StandardError=append:$REPO_ROOT/logs/${env_type}_${component}_error.log
 
 [Install]
 WantedBy=multi-user.target
 EOF
-
-        # Create systemd service file for dev frontend
-        cat > "$REPO_ROOT/service_files/freelims-dev-frontend.service" << EOF
+        else
+            cat > "$service_path" << EOF
 [Unit]
-Description=FreeLIMS Development Frontend
-After=network.target freelims-dev-backend.service
+Description=FreeLIMS ${env_type^} Frontend
+After=$after_service
 
 [Service]
 Type=simple
 User=$(whoami)
 WorkingDirectory=$REPO_ROOT
-ExecStart=$REPO_ROOT/scripts/system/dev/run_dev_frontend.sh
+ExecStart=$script_path
 Restart=always
 RestartSec=10
-StandardOutput=append:$REPO_ROOT/logs/dev_frontend.log
-StandardError=append:$REPO_ROOT/logs/dev_frontend_error.log
+StandardOutput=append:$REPO_ROOT/logs/${env_type}_${component}.log
+StandardError=append:$REPO_ROOT/logs/${env_type}_${component}_error.log
 
 [Install]
 WantedBy=multi-user.target
 EOF
-        print_status "success" "Created dev environment service files"
+        fi
+    }
+    
+    # Create run scripts and service files based on environment
+    if [[ "$env" == "dev" || "$env" == "all" ]]; then
+        create_run_script "dev"
+        create_service_file "dev" "backend"
+        create_service_file "dev" "frontend"
+        print_success "Created dev environment service files"
     fi
     
     if [[ "$env" == "prod" || "$env" == "all" ]]; then
-        # Create systemd service file for prod backend
-        cat > "$REPO_ROOT/service_files/freelims-prod-backend.service" << EOF
-[Unit]
-Description=FreeLIMS Production Backend
-After=network.target postgresql.service
-
-[Service]
-Type=simple
-User=$(whoami)
-WorkingDirectory=$REPO_ROOT
-ExecStart=/bin/bash -c 'cd $REPO_ROOT/backend && source venv/bin/activate && cp .env.production .env && echo "ENVIRONMENT=production" >> .env && echo "PORT=8002" >> .env && gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8002'
-Restart=always
-RestartSec=10
-StandardOutput=append:$REPO_ROOT/logs/prod_backend.log
-StandardError=append:$REPO_ROOT/logs/prod_backend_error.log
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-        # Create systemd service file for prod frontend
-        cat > "$REPO_ROOT/service_files/freelims-prod-frontend.service" << EOF
-[Unit]
-Description=FreeLIMS Production Frontend
-After=network.target freelims-prod-backend.service
-
-[Service]
-Type=simple
-User=$(whoami)
-WorkingDirectory=$REPO_ROOT/frontend
-ExecStart=/bin/bash -c 'cd $REPO_ROOT/frontend && cat > .env.production.local << ENVEOF
-REACT_APP_API_URL=http://localhost:8002/api
-PORT=3002
-NODE_ENV=production
-ENVEOF
-&& npx serve -s build -l 3002'
-Restart=always
-RestartSec=10
-StandardOutput=append:$REPO_ROOT/logs/prod_frontend.log
-StandardError=append:$REPO_ROOT/logs/prod_frontend_error.log
-
-[Install]
-WantedBy=multi-user.target
-EOF
-        print_status "success" "Created prod environment service files"
+        create_run_script "prod"
+        create_service_file "prod" "backend"
+        create_service_file "prod" "frontend"
+        print_success "Created prod environment service files"
     fi
     
     echo ""
-    print_status "success" "Persistent service files created in $REPO_ROOT/service_files"
+    print_success "Persistent service files created in $REPO_ROOT/service_files"
     echo ""
     echo "To enable these services, run:"
     echo "  $0 persistent $env enable"
@@ -485,33 +476,55 @@ enable_persistent_services_mac() {
     
     # Define LaunchAgents directory
     LAUNCH_AGENTS_DIR=~/Library/LaunchAgents
-    mkdir -p "$LAUNCH_AGENTS_DIR"
+    mkdir -p "$LAUNCH_AGENTS_DIR" || handle_error "Failed to create LaunchAgents directory"
     
     # Copy and load plist files based on environment
     if [[ "$env" == "dev" || "$env" == "all" ]]; then
-        cp "$REPO_ROOT/launch_files/com.freelims.dev.backend.plist" "$LAUNCH_AGENTS_DIR/"
-        cp "$REPO_ROOT/launch_files/com.freelims.dev.frontend.plist" "$LAUNCH_AGENTS_DIR/"
+        cp "$REPO_ROOT/launch_files/com.freelims.dev.backend.plist" "$LAUNCH_AGENTS_DIR/" || 
+            handle_error "Failed to copy dev backend plist file" "continue"
+        cp "$REPO_ROOT/launch_files/com.freelims.dev.frontend.plist" "$LAUNCH_AGENTS_DIR/" || 
+            handle_error "Failed to copy dev frontend plist file" "continue"
         
         launchctl unload "$LAUNCH_AGENTS_DIR/com.freelims.dev.backend.plist" 2>/dev/null
         launchctl unload "$LAUNCH_AGENTS_DIR/com.freelims.dev.frontend.plist" 2>/dev/null
         
-        launchctl load "$LAUNCH_AGENTS_DIR/com.freelims.dev.backend.plist"
-        launchctl load "$LAUNCH_AGENTS_DIR/com.freelims.dev.frontend.plist"
+        if launchctl load "$LAUNCH_AGENTS_DIR/com.freelims.dev.backend.plist"; then
+            log "Loaded dev backend service"
+        else
+            print_status "warning" "Failed to load dev backend service"
+        fi
         
-        print_status "success" "Enabled dev environment services"
+        if launchctl load "$LAUNCH_AGENTS_DIR/com.freelims.dev.frontend.plist"; then
+            log "Loaded dev frontend service"
+        else
+            print_status "warning" "Failed to load dev frontend service"
+        fi
+        
+        print_success "Enabled dev environment services"
     fi
     
     if [[ "$env" == "prod" || "$env" == "all" ]]; then
-        cp "$REPO_ROOT/launch_files/com.freelims.prod.backend.plist" "$LAUNCH_AGENTS_DIR/"
-        cp "$REPO_ROOT/launch_files/com.freelims.prod.frontend.plist" "$LAUNCH_AGENTS_DIR/"
+        cp "$REPO_ROOT/launch_files/com.freelims.prod.backend.plist" "$LAUNCH_AGENTS_DIR/" || 
+            handle_error "Failed to copy prod backend plist file" "continue"
+        cp "$REPO_ROOT/launch_files/com.freelims.prod.frontend.plist" "$LAUNCH_AGENTS_DIR/" || 
+            handle_error "Failed to copy prod frontend plist file" "continue"
         
         launchctl unload "$LAUNCH_AGENTS_DIR/com.freelims.prod.backend.plist" 2>/dev/null
         launchctl unload "$LAUNCH_AGENTS_DIR/com.freelims.prod.frontend.plist" 2>/dev/null
         
-        launchctl load "$LAUNCH_AGENTS_DIR/com.freelims.prod.backend.plist"
-        launchctl load "$LAUNCH_AGENTS_DIR/com.freelims.prod.frontend.plist"
+        if launchctl load "$LAUNCH_AGENTS_DIR/com.freelims.prod.backend.plist"; then
+            log "Loaded prod backend service"
+        else
+            print_status "warning" "Failed to load prod backend service"
+        fi
         
-        print_status "success" "Enabled prod environment services"
+        if launchctl load "$LAUNCH_AGENTS_DIR/com.freelims.prod.frontend.plist"; then
+            log "Loaded prod frontend service"
+        else
+            print_status "warning" "Failed to load prod frontend service"
+        fi
+        
+        print_success "Enabled prod environment services"
     fi
     
     echo ""
@@ -591,19 +604,43 @@ disable_persistent_services_mac() {
     
     # Unload plist files based on environment
     if [[ "$env" == "dev" || "$env" == "all" ]]; then
-        launchctl unload "$LAUNCH_AGENTS_DIR/com.freelims.dev.backend.plist" 2>/dev/null
-        launchctl unload "$LAUNCH_AGENTS_DIR/com.freelims.dev.frontend.plist" 2>/dev/null
+        if launchctl unload "$LAUNCH_AGENTS_DIR/com.freelims.dev.backend.plist" 2>/dev/null; then
+            log "Unloaded dev backend service"
+        else
+            log "Dev backend service was not loaded"
+        fi
+        
+        if launchctl unload "$LAUNCH_AGENTS_DIR/com.freelims.dev.frontend.plist" 2>/dev/null; then
+            log "Unloaded dev frontend service"
+        else
+            log "Dev frontend service was not loaded"
+        fi
+        
+        # Remove plist files
         rm -f "$LAUNCH_AGENTS_DIR/com.freelims.dev.backend.plist"
         rm -f "$LAUNCH_AGENTS_DIR/com.freelims.dev.frontend.plist"
-        print_status "success" "Disabled dev environment services"
+        
+        print_success "Disabled dev environment services"
     fi
     
     if [[ "$env" == "prod" || "$env" == "all" ]]; then
-        launchctl unload "$LAUNCH_AGENTS_DIR/com.freelims.prod.backend.plist" 2>/dev/null
-        launchctl unload "$LAUNCH_AGENTS_DIR/com.freelims.prod.frontend.plist" 2>/dev/null
+        if launchctl unload "$LAUNCH_AGENTS_DIR/com.freelims.prod.backend.plist" 2>/dev/null; then
+            log "Unloaded prod backend service"
+        else
+            log "Prod backend service was not loaded"
+        fi
+        
+        if launchctl unload "$LAUNCH_AGENTS_DIR/com.freelims.prod.frontend.plist" 2>/dev/null; then
+            log "Unloaded prod frontend service"
+        else
+            log "Prod frontend service was not loaded"
+        fi
+        
+        # Remove plist files
         rm -f "$LAUNCH_AGENTS_DIR/com.freelims.prod.backend.plist"
         rm -f "$LAUNCH_AGENTS_DIR/com.freelims.prod.frontend.plist"
-        print_status "success" "Disabled prod environment services"
+        
+        print_success "Disabled prod environment services"
     fi
     
     echo ""
@@ -652,7 +689,35 @@ setup_monitor_service() {
     log "Setting up and starting the monitoring service..."
     echo "Setting up monitoring service for environment: $env"
     
-    # Create the keep_alive script
+    # Check if port_config.sh exists and is accessible
+    if [ ! -f "$REPO_ROOT/port_config.sh" ]; then
+        handle_error "port_config.sh not found. Cannot start monitoring service." "continue"
+        print_status "warning" "Creating basic port configuration..."
+        cat > "$REPO_ROOT/port_config.sh" << 'EOF'
+#!/bin/bash
+# FreeLIMS Port Configuration (auto-generated)
+DEV_BACKEND_PORT=8001
+DEV_FRONTEND_PORT=3001
+PROD_BACKEND_PORT=8002
+PROD_FRONTEND_PORT=3002
+
+# Check if a port is in use
+is_port_in_use() {
+    local port=$1
+    if lsof -i :$port -t >/dev/null 2>&1; then
+        return 0  # Port is in use
+    else
+        return 1  # Port is free
+    fi
+}
+EOF
+        chmod +x "$REPO_ROOT/port_config.sh" || handle_error "Failed to make port_config.sh executable"
+    fi
+    
+    # Ensure log directory exists
+    mkdir -p "$REPO_ROOT/logs" || handle_error "Failed to create logs directory"
+    
+    # Create the keep_alive script with better error handling
     cat > "$REPO_ROOT/keep_alive.sh" << 'EOF'
 #!/bin/bash
 
@@ -661,10 +726,19 @@ setup_monitor_service() {
 # and restarts them if they're not.
 
 # Source port configuration
-source ./port_config.sh
-
-# Repository root
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$REPO_ROOT/port_config.sh" ]; then
+    source "$REPO_ROOT/port_config.sh"
+else
+    echo "ERROR: port_config.sh not found. Monitoring service will exit."
+    exit 1
+fi
+
+# Set default ports if not defined
+DEV_BACKEND_PORT=${DEV_BACKEND_PORT:-8001}
+DEV_FRONTEND_PORT=${DEV_FRONTEND_PORT:-3001}
+PROD_BACKEND_PORT=${PROD_BACKEND_PORT:-8002}
+PROD_FRONTEND_PORT=${PROD_FRONTEND_PORT:-3002}
 
 # Log file
 LOG_FILE="$REPO_ROOT/logs/keep_alive.log"
@@ -675,12 +749,27 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
+# Function to check if a process is running
+check_process() {
+    local pid=$1
+    if [ -n "$pid" ] && ps -p "$pid" > /dev/null; then
+        return 0  # Process is running
+    else
+        return 1  # Process is not running
+    fi
+}
+
 # Start development environment
 start_dev() {
     log "Starting development environment..."
     cd "$REPO_ROOT"
     ./freelims.sh system dev start > /dev/null 2>&1
-    log "Development environment startup completed."
+    local status=$?
+    if [ $status -eq 0 ]; then
+        log "Development environment startup completed successfully."
+    else
+        log "WARNING: Development environment startup failed with status $status."
+    fi
 }
 
 # Start production environment
@@ -688,43 +777,85 @@ start_prod() {
     log "Starting production environment..."
     cd "$REPO_ROOT"
     ./freelims.sh system prod start > /dev/null 2>&1
-    log "Production environment startup completed."
+    local status=$?
+    if [ $status -eq 0 ]; then
+        log "Production environment startup completed successfully."
+    else
+        log "WARNING: Production environment startup failed with status $status."
+    fi
 }
 
 # Keep services alive
 keep_alive() {
     local env="$1"
+    local restart_attempts=0
+    local max_restart_attempts=5
+    local restart_cooldown=300  # 5 minutes
+    
+    log "Starting keep-alive service for environment: $env"
     
     while true; do
+        local restart_needed=false
+        
         if [[ "$env" == "dev" || "$env" == "all" ]]; then
             # Check development backend
             if ! is_port_in_use $DEV_BACKEND_PORT; then
-                log "Development backend is not running. Restarting..."
-                start_dev
+                log "Development backend is not running on port $DEV_BACKEND_PORT."
+                restart_needed=true
             fi
 
             # Check development frontend
             if ! is_port_in_use $DEV_FRONTEND_PORT; then
-                log "Development frontend is not running. Restarting..."
-                start_dev
+                log "Development frontend is not running on port $DEV_FRONTEND_PORT."
+                restart_needed=true
+            fi
+            
+            if [ "$restart_needed" = true ]; then
+                if [ $restart_attempts -lt $max_restart_attempts ]; then
+                    log "Restarting development environment (attempt $((restart_attempts+1))/$max_restart_attempts)..."
+                    start_dev
+                    restart_attempts=$((restart_attempts+1))
+                else
+                    log "WARNING: Maximum restart attempts ($max_restart_attempts) reached for development environment. Cooling down for $restart_cooldown seconds."
+                    sleep $restart_cooldown
+                    restart_attempts=0
+                fi
+            else
+                restart_attempts=0  # Reset counter if everything is running
             fi
         fi
+        
+        restart_needed=false
         
         if [[ "$env" == "prod" || "$env" == "all" ]]; then
             # Check production backend
             if ! is_port_in_use $PROD_BACKEND_PORT; then
-                log "Production backend is not running. Restarting..."
-                start_prod
+                log "Production backend is not running on port $PROD_BACKEND_PORT."
+                restart_needed=true
             fi
 
             # Check production frontend
             if ! is_port_in_use $PROD_FRONTEND_PORT; then
-                log "Production frontend is not running. Restarting..."
-                start_prod
+                log "Production frontend is not running on port $PROD_FRONTEND_PORT."
+                restart_needed=true
+            fi
+            
+            if [ "$restart_needed" = true ]; then
+                if [ $restart_attempts -lt $max_restart_attempts ]; then
+                    log "Restarting production environment (attempt $((restart_attempts+1))/$max_restart_attempts)..."
+                    start_prod
+                    restart_attempts=$((restart_attempts+1))
+                else
+                    log "WARNING: Maximum restart attempts ($max_restart_attempts) reached for production environment. Cooling down for $restart_cooldown seconds."
+                    sleep $restart_cooldown
+                    restart_attempts=0
+                fi
+            else
+                restart_attempts=0  # Reset counter if everything is running
             fi
         fi
 
-        # Sleep for 2 minutes before checking again
+        # Sleep before checking again
         log "All services checked at $(date). Sleeping for 2 minutes..."
         sleep 120
     done
@@ -737,7 +868,7 @@ log "Monitoring environment: $1"
 # Start the keep-alive loop with the specified environment
 keep_alive "$1"
 EOF
-    chmod +x "$REPO_ROOT/keep_alive.sh"
+    chmod +x "$REPO_ROOT/keep_alive.sh" || handle_error "Failed to make keep_alive.sh executable" "continue"
     
     # Kill any existing keep-alive process
     pkill -f "keep_alive.sh" > /dev/null 2>&1
@@ -745,14 +876,13 @@ EOF
     # Start the keep-alive script in the background
     nohup "$REPO_ROOT/keep_alive.sh" "$env" > /dev/null 2>&1 &
     KEEP_ALIVE_PID=$!
-    echo $KEEP_ALIVE_PID > "$REPO_ROOT/logs/keep_alive.pid"
     
-    if ps -p $KEEP_ALIVE_PID > /dev/null; then
-        print_status "success" "Monitoring service started with PID: $KEEP_ALIVE_PID"
+    if check_process $KEEP_ALIVE_PID; then
+        echo $KEEP_ALIVE_PID > "$REPO_ROOT/logs/keep_alive.pid"
+        print_success "Monitoring service started with PID: $KEEP_ALIVE_PID"
         log "Monitoring service started with PID: $KEEP_ALIVE_PID"
     else
-        print_status "error" "Failed to start monitoring service"
-        log "Failed to start monitoring service"
+        handle_error "Failed to start monitoring service" "continue"
         return 1
     fi
     
@@ -766,15 +896,37 @@ EOF
     return 0
 }
 
+# Add a helper function to check if a process is running
+check_process() {
+    local pid=$1
+    if [ -n "$pid" ] && ps -p "$pid" > /dev/null; then
+        return 0  # Process is running
+    else
+        return 1  # Process is not running
+    fi
+}
+
 # Stop the monitor service
 stop_monitor_service() {
     log "Stopping the monitoring service..."
     echo "Stopping the monitoring service..."
     
-    # Kill any existing keep-alive process
+    # Get the PID from file if it exists
+    local pid_file="$REPO_ROOT/logs/keep_alive.pid"
+    if [ -f "$pid_file" ]; then
+        local pid=$(cat "$pid_file")
+        if check_process "$pid"; then
+            kill "$pid" 2>/dev/null
+            log "Killed monitoring service with PID: $pid"
+        else
+            log "PID file exists but process $pid is not running"
+        fi
+        rm -f "$pid_file"
+    fi
+    
+    # Kill any remaining keep-alive processes
     if pkill -f "keep_alive.sh"; then
-        print_status "success" "Monitoring service stopped"
-        rm -f "$REPO_ROOT/logs/keep_alive.pid" 2>/dev/null
+        print_success "Monitoring service stopped"
     else
         print_status "warning" "No monitoring service was running"
     fi
@@ -789,15 +941,16 @@ manage_persistent_services() {
     
     # Validate environment and command
     if [ "$environment" != "dev" ] && [ "$environment" != "prod" ] && [ "$environment" != "all" ]; then
-        echo "Error: Invalid environment for persistent services. Must be 'dev', 'prod', or 'all'."
+        handle_error "Invalid environment for persistent services. Must be 'dev', 'prod', or 'all'."
         return 1
     fi
     
     if [ -z "$command" ]; then
-        echo "Error: Command is required for persistent service management."
-        echo "Available commands: setup, enable, disable, monitor, stop-monitor"
+        handle_error "Command is required for persistent service management. Available commands: setup, enable, disable, monitor, stop-monitor"
         return 1
     fi
+    
+    log "Executing persistent service command: $command for environment: $environment"
     
     case "$command" in
         setup)
@@ -816,13 +969,19 @@ manage_persistent_services() {
             stop_monitor_service
             ;;
         *)
-            echo "Error: Invalid command for persistent service management."
-            echo "Available commands: setup, enable, disable, monitor, stop-monitor"
+            handle_error "Invalid command for persistent service management. Available commands: setup, enable, disable, monitor, stop-monitor"
             return 1
             ;;
     esac
     
-    return $?
+    local status=$?
+    if [ $status -eq 0 ]; then
+        log "Command '$command' completed successfully for environment: $environment"
+    else
+        log "Command '$command' failed with status $status for environment: $environment"
+    fi
+    
+    return $status
 }
 
 # Handle different categories

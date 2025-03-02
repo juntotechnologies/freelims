@@ -1,0 +1,253 @@
+name: FreeLIMS Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ['3.9', '3.10']
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Ensure script is executable
+      run: chmod +x freelims.sh
+      
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r tests/requirements.txt
+        
+    - name: Create directory structure for tests
+      run: |
+        mkdir -p logs
+        mkdir -p scripts/system/dev
+        mkdir -p scripts/system/prod
+        
+    - name: Create test port_config.sh
+      run: |
+        cat > port_config.sh << 'EOF'
+        #!/bin/bash
+        # FreeLIMS Port Configuration (for testing)
+        DEV_BACKEND_PORT=8801
+        DEV_FRONTEND_PORT=3801
+        PROD_BACKEND_PORT=8802
+        PROD_FRONTEND_PORT=3802
+
+        # Check if a port is in use
+        is_port_in_use() {
+            local port=$1
+            if command -v lsof >/dev/null 2>&1; then
+                if lsof -i :$port -t >/dev/null 2>&1; then
+                    return 0  # Port is in use
+                else
+                    return 1  # Port is free
+                fi
+            elif command -v netstat >/dev/null 2>&1; then
+                if netstat -tuln | grep -q ":$port "; then
+                    return 0  # Port is in use
+                else
+                    return 1  # Port is free
+                fi
+            else
+                echo "Error: Cannot check port usage; neither lsof nor netstat available."
+                return 2  # Error condition
+            fi
+        }
+
+        # Get the process IDs using a specific port
+        get_process_on_port() {
+            local port=$1
+            if command -v lsof >/dev/null 2>&1; then
+                lsof -i :$port -t
+            elif command -v netstat >/dev/null 2>&1 && command -v grep >/dev/null 2>&1 && command -v awk >/dev/null 2>&1; then
+                netstat -tuln | grep ":$port " | awk '{print $7}'
+            else
+                echo "Error: Cannot get process; neither lsof nor netstat available."
+                return 1
+            fi
+        }
+
+        # Kill a process safely
+        safe_kill_process_on_port() {
+            local port=$1
+            local force=$2
+            
+            local pids=$(get_process_on_port $port)
+            if [ -z "$pids" ]; then
+                echo "No process found on port $port"
+                return 1
+            fi
+            
+            for pid in $pids; do
+                if [ "$force" = "yes" ]; then
+                    kill -9 $pid 2>/dev/null
+                    echo "Force killed process $pid on port $port"
+                else
+                    kill $pid 2>/dev/null
+                    echo "Terminated process $pid on port $port"
+                fi
+            done
+            
+            return 0
+        }
+        EOF
+        chmod +x port_config.sh
+        
+    - name: Run unit tests
+      run: |
+        pytest tests/unit/ -v
+        
+    - name: Create dummy script files for integration tests
+      run: |
+        mkdir -p scripts/system
+        cat > scripts/system/manage.sh << 'EOF'
+        #!/bin/bash
+        # Dummy manage.sh for testing
+        
+        # Environment variables used
+        DEV_BACKEND_PORT=${DEV_BACKEND_PORT:-8001}
+        DEV_FRONTEND_PORT=${DEV_FRONTEND_PORT:-3001}
+        PROD_BACKEND_PORT=${PROD_BACKEND_PORT:-8002}
+        PROD_FRONTEND_PORT=${PROD_FRONTEND_PORT:-3002}
+        
+        manage_system() {
+            local env=$1
+            local cmd=$2
+            
+            echo "Managing system: $env $cmd"
+            
+            case "$cmd" in
+                start)
+                    echo "Starting $env environment"
+                    return 0
+                    ;;
+                stop)
+                    echo "Stopping $env environment"
+                    return 0
+                    ;;
+                restart)
+                    echo "Restarting $env environment"
+                    return 0
+                    ;;
+                status)
+                    echo "Status of $env environment"
+                    echo "Environment Status: OK (mock)"
+                    return 0
+                    ;;
+                *)
+                    echo "Unknown command: $cmd"
+                    return 1
+                    ;;
+            esac
+        }
+        EOF
+        chmod +x scripts/system/manage.sh
+        
+        mkdir -p scripts/db
+        cat > scripts/db/manage.sh << 'EOF'
+        #!/bin/bash
+        # Dummy db/manage.sh for testing
+        
+        manage_database() {
+            local env=$1
+            local cmd=$2
+            
+            echo "Managing database: $env $cmd"
+            
+            case "$cmd" in
+                backup)
+                    echo "Backing up $env database"
+                    return 0
+                    ;;
+                restore)
+                    echo "Restoring $env database"
+                    return 0
+                    ;;
+                init)
+                    echo "Initializing $env database"
+                    return 0
+                    ;;
+                migrate)
+                    echo "Migrating $env database"
+                    return 0
+                    ;;
+                *)
+                    echo "Unknown command: $cmd"
+                    return 1
+                    ;;
+            esac
+        }
+        EOF
+        chmod +x scripts/db/manage.sh
+        
+        mkdir -p scripts/user
+        cat > scripts/user/manage.sh << 'EOF'
+        #!/bin/bash
+        # Dummy user/manage.sh for testing
+        
+        manage_users() {
+            local env=$1
+            local cmd=$2
+            
+            echo "Managing users: $env $cmd"
+            
+            case "$cmd" in
+                list)
+                    echo "Listing users in $env"
+                    return 0
+                    ;;
+                create)
+                    echo "Creating user in $env"
+                    return 0
+                    ;;
+                delete)
+                    echo "Deleting user in $env"
+                    return 0
+                    ;;
+                clear)
+                    echo "Clearing users in $env"
+                    return 0
+                    ;;
+                *)
+                    echo "Unknown command: $cmd"
+                    return 1
+                    ;;
+            esac
+        }
+        EOF
+        chmod +x scripts/user/manage.sh
+        
+    - name: Run integration tests with mocked components
+      run: |
+        pytest tests/integration/ -v --junitxml=test-results.xml
+        
+    - name: Generate coverage report
+      run: |
+        pytest --cov=. --cov-report=xml
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.os }}-${{ matrix.python-version }}
+        path: test-results.xml
+      if: always()
+      
+    - name: Upload coverage report
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false 
