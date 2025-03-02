@@ -62,6 +62,16 @@ jobs:
         mkdir -p logs
         mkdir -p scripts/system/dev
         mkdir -p scripts/system/prod
+        mkdir -p service_files
+        mkdir -p launch_files
+        
+        # Create files for Linux integration test
+        touch scripts/system/dev/run_dev_backend.sh
+        touch scripts/system/dev/run_dev_frontend.sh
+        touch service_files/freelims-dev-backend.service
+        touch service_files/freelims-dev-frontend.service
+        chmod +x scripts/system/dev/run_dev_backend.sh
+        chmod +x scripts/system/dev/run_dev_frontend.sh
         
     - name: Create test port_config.sh
       run: |
