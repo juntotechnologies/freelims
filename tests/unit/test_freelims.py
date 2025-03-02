@@ -21,9 +21,12 @@ class TestFreeLIMSScript(unittest.TestCase):
     def setUp(self):
         """Set up the test environment."""
         self.script_path = os.path.join(PROJECT_ROOT, 'freelims.sh')
-        # Ensure the script exists and is executable
+        # Ensure the script exists
         self.assertTrue(os.path.exists(self.script_path), "freelims.sh not found")
-        self.assertTrue(os.access(self.script_path, os.X_OK), "freelims.sh is not executable")
+        
+        # On non-Windows systems, check if the script is executable
+        if os.name != 'nt':  # 'nt' is the name for Windows
+            self.assertTrue(os.access(self.script_path, os.X_OK), "freelims.sh is not executable")
     
     @patch('subprocess.run')
     def test_help_output(self, mock_run):

@@ -24,7 +24,10 @@ class TestFreeLIMSIntegration(unittest.TestCase):
         self.script_path = os.path.join(PROJECT_ROOT, 'freelims.sh')
         # Ensure the script exists and is executable
         self.assertTrue(os.path.exists(self.script_path), "freelims.sh not found")
-        self.assertTrue(os.access(self.script_path, os.X_OK), "freelims.sh is not executable")
+        
+        # On non-Windows systems, check if the script is executable
+        if platform.system() != "Windows":
+            self.assertTrue(os.access(self.script_path, os.X_OK), "freelims.sh is not executable")
         
         # Create a temp directory for test files
         self.temp_dir = tempfile.mkdtemp()
@@ -116,13 +119,25 @@ safe_kill_process_on_port() {
         env = os.environ.copy()
         env["REPO_ROOT"] = self.temp_dir
         
-        result = subprocess.run(
-            [self.script_path] + command_args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,
-            env=env
-        )
+        # On Windows, run the shell script through bash
+        if platform.system() == "Windows":
+            # Use bash to execute the shell script
+            result = subprocess.run(
+                ["bash", self.script_path] + command_args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                env=env
+            )
+        else:
+            # On Unix-like systems, run the script directly
+            result = subprocess.run(
+                [self.script_path] + command_args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                env=env
+            )
         return result
     
     def test_port_list(self):
@@ -181,13 +196,23 @@ show_port_config() {
             env = os.environ.copy()
             env["REPO_ROOT"] = PROJECT_ROOT
             
-            result = subprocess.run(
-                [self.script_path, "port", "list"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True,
-                env=env
-            )
+            # On Windows, we need to use bash to execute the shell script
+            if platform.system() == "Windows":
+                result = subprocess.run(
+                    ["bash", self.script_path, "port", "list"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                    env=env
+                )
+            else:
+                result = subprocess.run(
+                    [self.script_path, "port", "list"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                    env=env
+                )
             
             # Print debug info
             print(f"Command exit code: {result.returncode}")
