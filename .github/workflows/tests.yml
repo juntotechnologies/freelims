@@ -30,6 +30,32 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r tests/requirements.txt
+        # Install backend dependencies for API tests
+        pip install -r backend/requirements.txt
+        # Additional dependencies for test/python directory
+        pip install python-socketio requests "python-socketio[asyncio_client]"
+        
+    - name: Configure environment for Python tests
+      run: |
+        # Create a mock version of the socketio module in the test dir
+        mkdir -p test/python/mocks
+        touch test/python/mocks/__init__.py
+        cat > test/python/mocks/socketio_mock.py << 'EOF'
+        # Mock SocketIO module for testing
+        class AsyncServer:
+            def __init__(self, async_mode='asgi', cors_allowed_origins='*'):
+                self.async_mode = async_mode
+                self.cors_allowed_origins = cors_allowed_origins
+        
+            async def emit(self, event, data, room=None):
+                print(f"Mock emit: {event}, {data}, room={room}")
+                return True
+        
+        class ASGIApp:
+            def __init__(self, sio, socketio_path=''):
+                self.sio = sio
+                self.socketio_path = socketio_path
+        EOF
         
     - name: Create directory structure for tests
       run: |
@@ -237,7 +263,8 @@ jobs:
         
     - name: Generate coverage report
       run: |
-        pytest --cov=. --cov-report=xml
+        # Exclude the Python test directory when generating coverage
+        pytest --cov=. --cov-report=xml --ignore=test/python/ --ignore=venv/
         
     - name: Upload test results
       uses: actions/upload-artifact@v4
