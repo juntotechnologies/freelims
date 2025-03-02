@@ -26,11 +26,13 @@ jobs:
     - name: Setup Bash on Windows
       if: matrix.os == 'windows-latest'
       run: |
-        # Check if bash is available and install Git Bash if needed
-        where bash || choco install git -y
-        echo "Using bash from:"
-        where bash
-      shell: cmd
+        # Install Git which includes Git Bash
+        choco install git -y
+        # Add Git's bin directory to PATH to ensure bash.exe is available
+        echo "C:\Program Files\Git\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        # Verify bash.exe is available (from Git)
+        where.exe bash.exe
+      shell: pwsh
         
     - name: Ensure script is executable
       run: chmod +x freelims.sh
