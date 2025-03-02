@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.freelims.prod.frontend</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/shaun/Documents/GitHub/projects/freelims/scripts/system/prod/run_prod_frontend.sh</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/shaun/Documents/GitHub/projects/freelims</string>
+    <key>StandardOutPath</key>
+    <string>/Users/shaun/Documents/GitHub/projects/freelims/logs/prod_frontend.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/shaun/Documents/GitHub/projects/freelims/logs/prod_frontend_error.log</string>
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
