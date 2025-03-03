@@ -50,12 +50,12 @@ frontend/build/
 # Environment and Configuration
 # -----------------------------------------------------------------------------
 .env
-.env.local
-.env.development
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
 *.env
+backend/.env*
+backend/*.env
+backend/.env.production
+backend/.env.development
 auth.json
 
 # Logs and Debugging
