@@ -174,10 +174,12 @@ backups/
 # -----------------------------------------------------------------------------
 # Note: Consider if these are really needed or too broad
 # Local paths
-# **/Users/shaun/**  # Commented out - too broad
-# **/Users/Shared/** # Commented out - too broad
-# **/SDrive/**       # Only if needed
-# **/ADrive/**       # Only if needed
+**/Users/shaun/**
+**/Users/Shared/**
+**/SDrive/**
+**/ADrive/**
+**/CIT-MacMini*
+**/cit-office*
 
 # Local network information - likely not needed for most users
 # **/192.168.*
@@ -194,4 +196,20 @@ backups/
 *_backup*/
 *.bak
 *.dump
-*.dump.meta 
+*.dump.meta
+
+# User-specific paths and sensitive information
+# -----------------------------------------------------------------------------
+**/Users/shaun/**
+**/Users/Shared/**
+**/SDrive/**
+**/ADrive/**
+**/CIT-MacMini*
+**/cit-office*
+
+# Service and launch daemon files
+# -----------------------------------------------------------------------------
+*.service
+*.plist
+!templates/services/*.service.example
+!templates/services/*.plist.example 
