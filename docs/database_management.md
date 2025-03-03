@@ -18,16 +18,16 @@ FreeLIMS uses PostgreSQL as its database management system. The application supp
 
 ### Database Architecture
 
-- **Development database**: `freelims_dev` located at `/Users/Shared/ADrive/freelims_db_dev`
-- **Production database**: `freelims_prod` located at `/Users/Shared/SDrive/freelims_production`
+- **Development database**: `freelims_dev` located at `/Users/Shared/FreeLIMS/development`
+- **Production database**: `freelims` located at `/Users/Shared/FreeLIMS/production`
+- **PostgreSQL data**: `/Users/Shared/FreeLIMS/postgres_data`
 
 ### Database Management Tools
 
 FreeLIMS provides a suite of scripts in the `scripts/` directory for managing your database:
 
-1. **`db_manager.sh`**: Core database management functionality
-2. **`db_backup.sh`**: User-friendly backup utility
-3. **`db_restore.sh`**: User-friendly restore utility
+1. **`create_db_backup.sh`**: Automated backup utility in `scripts/system/setup/`
+2. **`configure_postgres.sh`**: PostgreSQL configuration utility in `scripts/system/setup/`
 
 ## Database Configuration
 
@@ -39,13 +39,21 @@ Database connection settings are managed through environment files:
 ### Default Database Settings
 
 ```properties
-# Database settings
+# Database settings (Production)
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=freelims_dev  # or freelims_prod for production
-DB_USER=shaun  # replace with your PostgreSQL username
-DB_PASSWORD=  # set your password here
-DB_SCHEMA_PATH=/Users/Shared/ADrive/freelims_db_dev  # path for development
+DB_NAME=freelims
+DB_USER=shaun
+DB_PASSWORD=
+DB_SCHEMA_PATH=/Users/Shared/FreeLIMS/production
+
+# Database settings (Development)
+# DB_HOST=localhost
+# DB_PORT=5432
+# DB_NAME=freelims_dev
+# DB_USER=shaun
+# DB_PASSWORD=
+# DB_SCHEMA_PATH=/Users/Shared/FreeLIMS/development
 ```
 
 ## Backup
@@ -54,62 +62,40 @@ Regular database backups are essential to prevent data loss. FreeLIMS provides a
 
 ### Creating a Backup
 
-The simplest way to create a backup is by running:
+To create a backup of both development and production databases:
 
 ```bash
-# Development database
-./scripts/db_backup.sh
-
-# Production database
-./scripts/db_backup.sh -e production
+# Create backups for both environments
+~/Documents/GitHub/projects/freelims/scripts/system/setup/create_db_backup.sh
 ```
 
 ### Backup Options
 
-The backup utility offers several options:
-
-```bash
-# List existing backups
-./scripts/db_backup.sh -l
-
-# Prune old backups (keep only the 5 most recent)
-./scripts/db_backup.sh -p 5
-
-# Schedule automatic daily backups at 3:00 AM
-./scripts/db_backup.sh -s
-
-# Show help
-./scripts/db_backup.sh -h
-```
+The backup script automatically:
+- Creates timestamped backups
+- Maintains separate directories for production and development
+- Sets secure file permissions (600)
+- Cleans up old backups (14 days for production, 7 days for development)
+- Logs all activity
 
 ### Backup Locations
 
-Backups are stored in dedicated shared drives for better data management and security:
+Backups are stored securely on the local machine:
 
-- **Development backups**: `/Users/Shared/ADrive/freelims_backups`
-- **Production backups**: `/Users/Shared/SDrive/freelims_backups`
+- **Production backups**: `/Users/Shared/FreeLIMS/backups/production/`
+- **Development backups**: `/Users/Shared/FreeLIMS/backups/development/`
 
-This ensures that:
-1. Backups are kept separate from the code repository
-2. Development data (which may contain test data) is stored in ADrive
-3. Production data (which contains actual business data) is stored in SDrive
-4. Backups are not accidentally committed to Git
+### Scheduled Backups
 
-Each backup includes:
-- `.dump` file: PostgreSQL database dump that can be restored
-- `.meta` file: Contains metadata about the backup (timestamp, database name, etc.)
-
-A symbolic link to the latest backup is also maintained for quick access.
-
-### Automating Backups
-
-For production systems, it's recommended to set up automated backups using the scheduling option:
+To set up automatic daily backups, add this to your crontab:
 
 ```bash
-./scripts/db_backup.sh -e production -s
-```
+# Open crontab editor
+crontab -e
 
-This will create a cron job that runs daily at 3:00 AM.
+# Add this line to run backups at midnight daily
+0 0 * * * /Users/shaun/Documents/GitHub/projects/freelims/scripts/system/setup/create_db_backup.sh
+```
 
 ## Restore
 
@@ -217,15 +203,15 @@ FreeLIMS maintains strict separation between development and production data:
 
 1. **Development Environment**
    - Uses the `freelims_dev` database
-   - Data is stored in `/Users/Shared/ADrive/freelims_db_dev`
-   - Backups are stored in `/Users/Shared/ADrive/freelims_backups`
+   - Data is stored in `/Users/Shared/FreeLIMS/development`
+   - Backups are stored in `/Users/Shared/FreeLIMS/backups/development`
    - Accessible only to admin users with specific permissions
    - Contains test data and can be reset safely
    
 2. **Production Environment**
-   - Uses the `freelims_prod` database
-   - Data is stored in `/Users/Shared/SDrive/freelims_production`
-   - Backups are stored in `/Users/Shared/SDrive/freelims_backups`
+   - Uses the `freelims` database
+   - Data is stored in `/Users/Shared/FreeLIMS/production`
+   - Backups are stored in `/Users/Shared/FreeLIMS/backups/production`
    - Accessible to all employees with proper credentials
    - Contains actual business data that must be preserved
 
