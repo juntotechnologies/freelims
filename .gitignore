@@ -186,4 +186,12 @@ backups/
 
 # Environment-specific configuration
 # **/CIT-MacMini*
-# **/cit-office* 
+# **/cit-office*
+
+# Backup files and directories
+/backups/
+/script_backups/
+*_backup*/
+*.bak
+*.dump
+*.dump.meta 
