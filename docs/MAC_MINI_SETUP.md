@@ -122,6 +122,27 @@ If you encounter issues:
 3. Ensure the PostgreSQL service is running: `ps aux | grep postgres`
 4. Restart services using the `freelims.sh` script
 
+## Network Drives Cleanup
+
+After migrating databases to the Mac Mini's local storage, old database directories remained on network drives. A cleanup script has been provided to safely remove these:
+
+```bash
+# Review and run the cleanup script
+~/Documents/GitHub/projects/freelims/scripts/system/setup/cleanup_old_db_locations.sh
+```
+
+The script will remove the following old directories:
+- `/Users/Shared/ADrive/freelims_backups/`
+- `/Users/Shared/ADrive/freelims_db_dev/`
+- `/Users/Shared/ADrive/freelims_db/`
+- `/Users/Shared/SDrive/freelims_backups/`
+- `/Users/Shared/SDrive/freelims_logs/`
+- `/Users/Shared/SDrive/freelims_production/`
+- `/Users/Shared/SDrive/freelims/`
+- `/Users/Shared/SDrive/freelims_db/`
+
+**Important**: Only run this script after confirming the local database setup is working correctly.
+
 ## Configuration Scripts
 
 The following scripts were used to set up this configuration:
