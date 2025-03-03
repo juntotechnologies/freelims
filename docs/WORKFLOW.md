@@ -62,6 +62,65 @@ git commit -m "Description of changes"
 git push origin main  # or your branch name
 ```
 
+### 5. Solo Developer Git Workflow
+
+As a solo developer, you can use a simplified Git branching strategy while still maintaining separate development and production environments. This approach gives you the benefits of isolated development without the overhead of pull requests.
+
+**Branch Structure:**
+- `main` - Production-ready code, always stable
+- `develop` - Development and testing environment
+
+**Workflow Steps:**
+
+1. **Develop in the develop branch:**
+   ```bash
+   # Switch to develop branch and get latest changes
+   git checkout develop
+   git pull origin develop
+
+   # Make and test your changes
+   # ...development work...
+
+   # Commit changes
+   git add .
+   git commit -m "Description of your changes"
+   
+   # Push to develop
+   git push origin develop
+   ```
+
+2. **Test thoroughly in develop environment:**
+   ```bash
+   # Start development environment
+   ./freelims.sh system dev start
+   
+   # Run tests and verify everything works
+   ```
+
+3. **Merge to main when ready for production:**
+   ```bash
+   # Switch to main branch
+   git checkout main
+   
+   # Merge changes from develop
+   git merge develop
+   
+   # Push changes to remote repository
+   git push origin main
+   
+   # Also push develop to keep it updated
+   git checkout develop
+   git push origin develop
+   ```
+
+4. **Deploy to production as described in the deployment section**
+
+This workflow provides:
+- Separate environments for development and production
+- A stable main branch for production
+- Simplified process without formal pull requests
+- Clear history of development in the repository
+
 ## Preparing for Deployment
 
 Before deploying to production, you need to prepare your application:
