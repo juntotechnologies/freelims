@@ -5,12 +5,18 @@
 # This script serves as the entry point for all FreeLIMS operations
 # ----------------------------------------------------------------------------
 
-VERSION="1.1.0"
+VERSION="1.2.0"
 
 # Determine the script and repository paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$SCRIPT_DIR"
 SCRIPTS_DIR="$REPO_ROOT/scripts"
+UTILS_DIR="$REPO_ROOT/scripts/utils"
+
+# Source the Git environment selector if it exists
+if [ -f "$UTILS_DIR/git_env_selector.sh" ]; then
+    source "$UTILS_DIR/git_env_selector.sh"
+fi
 
 # Utility functions
 print_banner() {
@@ -35,6 +41,8 @@ print_usage() {
     echo "  dev         Development environment"
     echo "  prod        Production environment"
     echo "  all         Both environments"
+    echo "  auto        Auto-detect environment based on Git branch"
+    echo "               (main/master -> prod, develop -> dev)"
     echo ""
     echo "System Commands:"
     echo "  start       Start the specified environment"
@@ -69,6 +77,7 @@ print_usage() {
     echo "Examples:"
     echo "  $0 system dev start     # Start development environment"
     echo "  $0 system prod restart  # Restart production environment"
+    echo "  $0 system auto start    # Start environment based on current Git branch"
     echo "  $0 db dev backup        # Backup development database"
     echo "  $0 user dev clear       # Clear users from development database"
     echo "  $0 port list            # List port configurations"
@@ -97,9 +106,29 @@ CATEGORY=$1
 ENVIRONMENT=$2
 COMMAND=$3
 
+# Git branch-based environment auto-detection
+if [ "$ENVIRONMENT" == "auto" ]; then
+    # Check if git_env_selector.sh was successfully sourced
+    if [ "$(type -t select_environment)" != "function" ]; then
+        echo "Error: Git environment selector not available. Unable to auto-detect environment."
+        echo "Please manually specify 'dev' or 'prod' as the environment."
+        exit 1
+    fi
+    
+    # Get the current branch and select environment
+    CURRENT_BRANCH=$(get_current_branch)
+    DETECTED_ENV=$(select_environment)
+    
+    echo "Auto-detected Git branch: $CURRENT_BRANCH"
+    echo "Using environment: $DETECTED_ENV"
+    
+    # Update ENVIRONMENT variable
+    ENVIRONMENT=$DETECTED_ENV
+fi
+
 # Validate environment (except for port and persistent category, which have their own validations)
 if [ "$ENVIRONMENT" != "dev" ] && [ "$ENVIRONMENT" != "prod" ] && [ "$ENVIRONMENT" != "all" ] && [ "$CATEGORY" != "port" ] && [ "$CATEGORY" != "persistent" ]; then
-    echo "Error: Invalid environment. Must be 'dev', 'prod', or 'all'."
+    echo "Error: Invalid environment. Must be 'dev', 'prod', 'all', or 'auto'."
     print_usage
     exit 1
 fi

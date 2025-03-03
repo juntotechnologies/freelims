@@ -1,0 +1,88 @@
+name: Deploy FreeLIMS Environments
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          
+      - name: Determine Environment
+        id: env
+        run: |
+          if [[ ${{ github.ref }} == 'refs/heads/main' ]]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
+            echo "Deploying to production environment"
+          else
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "Deploying to development environment"
+          fi
+      
+      - name: Stop Current Environment
+        run: |
+          ENV=${{ steps.env.outputs.environment }}
+          ./freelims.sh system $ENV stop
+          
+      - name: Update Database
+        run: |
+          ENV=${{ steps.env.outputs.environment }}
+          # Check if database exists, create if not
+          if ! psql -h localhost -U shaun -d postgres -lqt | cut -d \| -f 1 | grep -qw "freelims_$ENV"; then
+            echo "Creating $ENV database..."
+            createdb -h localhost -U shaun "freelims_$ENV"
+          fi
+          
+          # Run migrations
+          cd backend
+          source venv/bin/activate
+          export ENV=$ENV
+          # Copy the right .env file
+          cp .env.$ENV .env
+          # Run migrations
+          python -m alembic upgrade head
+          
+      - name: Start Updated Environment
+        run: |
+          ENV=${{ steps.env.outputs.environment }}
+          ./freelims.sh system $ENV start
+          
+      - name: Verify Services
+        run: |
+          ENV=${{ steps.env.outputs.environment }}
+          # Get the right ports based on environment
+          if [[ $ENV == "prod" ]]; then
+            BACKEND_PORT=8002
+            FRONTEND_PORT=3002
+          else
+            BACKEND_PORT=8001
+            FRONTEND_PORT=3001
+          fi
+          
+          # Check if services are running
+          echo "Checking backend on port $BACKEND_PORT..."
+          curl -s http://localhost:$BACKEND_PORT/api/health || echo "Backend not responding"
+          
+          echo "Checking frontend on port $FRONTEND_PORT..."
+          curl -s http://localhost:$FRONTEND_PORT || echo "Frontend not responding"
+          
+      - name: Notify Deployment Status
+        run: |
+          ENV=${{ steps.env.outputs.environment }}
+          echo "Deployment of $ENV environment completed"
+          if [[ $ENV == "prod" ]]; then
+            echo "Production environment is running at http://localhost:8002 (API) and http://localhost:3002 (frontend)"
+          else
+            echo "Development environment is running at http://localhost:8001 (API) and http://localhost:3001 (frontend)"
+          fi 

@@ -313,7 +313,7 @@ main() {
     echo "  Admin Password: ${DEFAULT_ADMIN_PASSWORD}"
     echo ""
     echo "To start the development environment, run:"
-    echo "  ${REPO_ROOT}/scripts/freelims.sh dev start"
+    echo "  ${REPO_ROOT}/freelims.sh dev start"
     echo ""
     
     return 0

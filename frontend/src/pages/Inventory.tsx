@@ -22,11 +22,14 @@ import {
   FormControl,
   CircularProgress,
   Container,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import RemoveIcon from '@mui/icons-material/Remove';
+import HistoryIcon from '@mui/icons-material/History';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import api from '../services/api';
@@ -73,6 +76,18 @@ interface NewLocation {
   description?: string;
 }
 
+interface InventoryChange {
+  id: number;
+  inventory_item_id: number;
+  user_id: number;
+  change_amount: number;
+  reason: string;
+  experiment_id?: number;
+  timestamp: string;
+  supplier?: string;
+  acquisition_date?: string;
+}
+
 const Inventory: React.FC = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [chemicals, setChemicals] = useState<Chemical[]>([]);
@@ -107,6 +122,21 @@ const Inventory: React.FC = () => {
   const [newLocation, setNewLocation] = useState<NewLocation>({ name: '' });
   const [editingChemical, setEditingChemical] = useState<Chemical | null>(null);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
+
+  const [openAcquisitionDialog, setOpenAcquisitionDialog] = useState(false);
+  const [acquisitions, setAcquisitions] = useState<InventoryChange[]>([]);
+  const [openHistoryDialog, setOpenHistoryDialog] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
+
+  const [acquisition, setAcquisition] = useState({
+    quantity: '',
+    reason: 'New acquisition',
+    supplier: '',
+    acquisition_date: new Date(),
+  });
+
+  const [usageHistory, setUsageHistory] = useState<InventoryChange[]>([]);
+  const [allChanges, setAllChanges] = useState<InventoryChange[]>([]);
 
   const columns: GridColDef[] = [
     { field: 'id', headerName: 'ID', width: 90 },
@@ -172,14 +202,20 @@ const Inventory: React.FC = () => {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 200,
+      width: 250,
       renderCell: (params) => (
         <Box>
-          <IconButton onClick={() => handleEdit(params.row)}>
+          <IconButton onClick={() => handleEdit(params.row)} title="Edit item">
             <EditIcon />
           </IconButton>
-          <IconButton onClick={() => handleOpenUsageDialog(params.row)}>
+          <IconButton onClick={() => handleOpenUsageDialog(params.row)} title="Record usage">
             <RemoveIcon />
+          </IconButton>
+          <IconButton onClick={() => handleOpenAcquisitionDialog(params.row)} title="Record acquisition">
+            <AddIcon />
+          </IconButton>
+          <IconButton onClick={() => handleOpenHistoryDialog(params.row)} title="View history">
+            <HistoryIcon />
           </IconButton>
         </Box>
       ),
@@ -568,6 +604,84 @@ const Inventory: React.FC = () => {
     queryClient.invalidateQueries('inventory');
     queryClient.invalidateQueries('chemicals');
     queryClient.invalidateQueries('locations');
+  };
+
+  // Add this for acquisition history
+  const fetchAcquisitionHistory = async (itemId: number) => {
+    try {
+      const response = await api.get<InventoryChange[]>(`/inventory/acquisitions?inventory_item_id=${itemId}`);
+      setAcquisitions(response.data);
+    } catch (error) {
+      console.error('Error fetching acquisition history:', error);
+      setError('Failed to fetch acquisition history');
+    }
+  };
+
+  const handleOpenAcquisitionDialog = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setAcquisition({
+      quantity: '',
+      reason: 'New acquisition',
+      supplier: '',
+      acquisition_date: new Date(),
+    });
+    setOpenAcquisitionDialog(true);
+  };
+
+  const fetchUsageHistory = async (itemId: number) => {
+    try {
+      const response = await api.get<InventoryChange[]>(`/inventory/changes?inventory_item_id=${itemId}`);
+      // Filter for usage records (negative change_amount)
+      const usageRecords = response.data.filter(change => change.change_amount < 0);
+      setUsageHistory(usageRecords);
+    } catch (error) {
+      console.error('Error fetching usage history:', error);
+      setError('Failed to fetch usage history');
+    }
+  };
+
+  const fetchAllChanges = async (itemId: number) => {
+    try {
+      const response = await api.get<InventoryChange[]>(`/inventory/changes?inventory_item_id=${itemId}`);
+      setAllChanges(response.data);
+    } catch (error) {
+      console.error('Error fetching change history:', error);
+      setError('Failed to fetch change history');
+    }
+  };
+
+  const handleOpenHistoryDialog = async (item: InventoryItem) => {
+    setSelectedItem(item);
+    setOpenHistoryDialog(true);
+    setTabValue(0);
+    await fetchAcquisitionHistory(item.id);
+    await fetchUsageHistory(item.id);
+    await fetchAllChanges(item.id);
+  };
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
+
+  const handleRecordAcquisition = async () => {
+    if (!selectedItem) return;
+
+    try {
+      await api.post('/inventory/changes', {
+        inventory_item_id: selectedItem.id,
+        change_amount: parseFloat(acquisition.quantity),
+        reason: acquisition.reason,
+        supplier: acquisition.supplier,
+        acquisition_date: acquisition.acquisition_date 
+          ? acquisition.acquisition_date.toISOString().split('T')[0] 
+          : null,
+      });
+      setSuccess('Acquisition recorded successfully');
+      setOpenAcquisitionDialog(false);
+      queryClient.invalidateQueries('inventory');
+    } catch (err) {
+      setError('Failed to record acquisition');
+    }
   };
 
   return (
@@ -986,6 +1100,260 @@ const Inventory: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseLocationDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Record Acquisition Dialog */}
+      <Dialog open={openAcquisitionDialog} onClose={() => setOpenAcquisitionDialog(false)}>
+        <DialogTitle>Record Chemical Acquisition</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <Typography variant="body1">
+                Current Quantity: {selectedItem?.quantity} {selectedItem?.unit}
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Acquisition Quantity"
+                type="number"
+                value={acquisition.quantity}
+                onChange={(e) => setAcquisition({ ...acquisition, quantity: e.target.value })}
+                required
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Supplier"
+                value={acquisition.supplier}
+                onChange={(e) => setAcquisition({ ...acquisition, supplier: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                <DatePicker
+                  label="Acquisition Date"
+                  value={acquisition.acquisition_date}
+                  onChange={(date) => setAcquisition({ ...acquisition, acquisition_date: date as Date })}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true
+                    }
+                  }}
+                  format="yyyy-MM-dd"
+                />
+              </LocalizationProvider>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Reason/Notes"
+                multiline
+                rows={2}
+                value={acquisition.reason}
+                onChange={(e) => setAcquisition({ ...acquisition, reason: e.target.value })}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenAcquisitionDialog(false)}>Cancel</Button>
+          <Button onClick={handleRecordAcquisition} variant="contained" color="primary">
+            Record Acquisition
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* History Dialog */}
+      <Dialog open={openHistoryDialog} onClose={() => setOpenHistoryDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          History for {selectedItem?.chemical?.name} ({selectedItem?.batch_number})
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+            <Tabs value={tabValue} onChange={handleTabChange}>
+              <Tab label="Acquisitions" />
+              <Tab label="Usage" />
+              <Tab label="All Changes" />
+            </Tabs>
+          </Box>
+          
+          {tabValue === 0 && (
+            <>
+              <Typography variant="subtitle1" gutterBottom>
+                Acquisition History
+              </Typography>
+              {acquisitions.length > 0 ? (
+                <DataGrid
+                  rows={acquisitions}
+                  columns={[
+                    { field: 'id', headerName: 'ID', width: 70 },
+                    { field: 'change_amount', headerName: 'Quantity', width: 100 },
+                    { field: 'supplier', headerName: 'Supplier', width: 150 },
+                    { 
+                      field: 'acquisition_date', 
+                      headerName: 'Acquisition Date', 
+                      width: 150,
+                      valueFormatter: (params) => {
+                        if (!params.value) return '';
+                        return params.value.toString().split('T')[0];
+                      } 
+                    },
+                    { 
+                      field: 'timestamp', 
+                      headerName: 'Recorded On', 
+                      width: 180,
+                      valueFormatter: (params) => {
+                        if (!params.value) return '';
+                        const date = new Date(params.value);
+                        return date.toLocaleString();
+                      } 
+                    },
+                    { field: 'reason', headerName: 'Notes', width: 200 },
+                  ]}
+                  initialState={{
+                    pagination: {
+                      paginationModel: {
+                        pageSize: 5,
+                      },
+                    },
+                  }}
+                  pageSizeOptions={[5]}
+                  autoHeight
+                  disableRowSelectionOnClick
+                />
+              ) : (
+                <Typography variant="body1">No acquisition records found.</Typography>
+              )}
+            </>
+          )}
+
+          {tabValue === 1 && (
+            <>
+              <Typography variant="subtitle1" gutterBottom>
+                Usage History
+              </Typography>
+              {usageHistory.length > 0 ? (
+                <DataGrid
+                  rows={usageHistory}
+                  columns={[
+                    { field: 'id', headerName: 'ID', width: 70 },
+                    { 
+                      field: 'change_amount', 
+                      headerName: 'Quantity Used', 
+                      width: 120,
+                      valueFormatter: (params) => {
+                        // Display as positive number for better UX
+                        return Math.abs(params.value as number).toString();
+                      } 
+                    },
+                    { 
+                      field: 'timestamp', 
+                      headerName: 'Date Used', 
+                      width: 180,
+                      valueFormatter: (params) => {
+                        if (!params.value) return '';
+                        const date = new Date(params.value);
+                        return date.toLocaleString();
+                      } 
+                    },
+                    { field: 'reason', headerName: 'Purpose/Notes', width: 350 },
+                    {
+                      field: 'experiment_id',
+                      headerName: 'Experiment ID',
+                      width: 120,
+                      valueFormatter: (params) => {
+                        return params.value ? params.value.toString() : 'N/A';
+                      }
+                    }
+                  ]}
+                  initialState={{
+                    pagination: {
+                      paginationModel: {
+                        pageSize: 5,
+                      },
+                    },
+                  }}
+                  pageSizeOptions={[5]}
+                  autoHeight
+                  disableRowSelectionOnClick
+                />
+              ) : (
+                <Typography variant="body1">No usage records found.</Typography>
+              )}
+            </>
+          )}
+
+          {tabValue === 2 && (
+            <>
+              <Typography variant="subtitle1" gutterBottom>
+                All Inventory Changes
+              </Typography>
+              {allChanges.length > 0 ? (
+                <DataGrid
+                  rows={allChanges}
+                  columns={[
+                    { field: 'id', headerName: 'ID', width: 70 },
+                    { 
+                      field: 'change_amount', 
+                      headerName: 'Change Amount', 
+                      width: 120,
+                      valueFormatter: (params) => {
+                        const value = params.value as number;
+                        return value.toFixed(2) + (value > 0 ? ' (Addition)' : ' (Usage)');
+                      }
+                    },
+                    { 
+                      field: 'timestamp', 
+                      headerName: 'Date', 
+                      width: 180,
+                      valueFormatter: (params) => {
+                        if (!params.value) return '';
+                        const date = new Date(params.value);
+                        return date.toLocaleString();
+                      } 
+                    },
+                    { field: 'reason', headerName: 'Reason', width: 200 },
+                    { field: 'supplier', headerName: 'Supplier', width: 150 },
+                    { 
+                      field: 'acquisition_date', 
+                      headerName: 'Acquisition Date', 
+                      width: 150,
+                      valueFormatter: (params) => {
+                        if (!params.value) return 'N/A';
+                        return params.value.toString().split('T')[0];
+                      } 
+                    },
+                    {
+                      field: 'experiment_id',
+                      headerName: 'Experiment ID',
+                      width: 120,
+                      valueFormatter: (params) => {
+                        return params.value ? params.value.toString() : 'N/A';
+                      }
+                    }
+                  ]}
+                  initialState={{
+                    pagination: {
+                      paginationModel: {
+                        pageSize: 5,
+                      },
+                    },
+                  }}
+                  pageSizeOptions={[5]}
+                  autoHeight
+                  disableRowSelectionOnClick
+                />
+              ) : (
+                <Typography variant="body1">No change records found.</Typography>
+              )}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenHistoryDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Container>

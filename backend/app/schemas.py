@@ -130,6 +130,8 @@ class InventoryChangeBase(BaseModel):
     change_amount: float
     reason: str
     experiment_id: Optional[int] = None
+    supplier: Optional[str] = None  # Supplier information for acquisitions
+    acquisition_date: Optional[datetime] = None  # Date when chemical was acquired
 
 class InventoryChangeCreate(InventoryChangeBase):
     pass

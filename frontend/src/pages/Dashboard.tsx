@@ -15,7 +15,8 @@ import {
   People as PeopleIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import api from '../services/api';
+import { useQuery } from 'react-query';
 
 // Dashboard stat card component
 interface StatCardProps {
@@ -24,6 +25,13 @@ interface StatCardProps {
   icon: React.ReactNode;
   color: string;
   loading?: boolean;
+}
+
+// Stats interface
+interface DashboardStats {
+  pendingTests: number;
+  inventoryItems: number;
+  activeUsers: number;
 }
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color, loading = false }) => (
@@ -65,28 +73,41 @@ interface ActivityItem {
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<DashboardStats>({
     pendingTests: 0,
     inventoryItems: 0,
     activeUsers: 0
   });
   const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
 
+  // Use React Query to fetch dashboard statistics
+  const { isLoading, error, data } = useQuery<DashboardStats>(
+    'dashboardStats',
+    async () => {
+      const response = await api.get<DashboardStats>('/dashboard/stats');
+      return response.data;
+    },
+    {
+      staleTime: 0, // Consider data stale immediately
+      refetchOnWindowFocus: true,
+      refetchOnMount: true, // Always refetch when component mounts
+      cacheTime: 0, // Don't cache the data
+      onSuccess: (data) => {
+        console.log('Dashboard stats fetched:', data);
+        setStats({
+          pendingTests: data.pendingTests || 0,
+          inventoryItems: data.inventoryItems || 0,
+          activeUsers: data.activeUsers || 0
+        });
+      },
+      onError: (err) => {
+        console.error('Error fetching dashboard stats:', err);
+      }
+    }
+  );
+
   useEffect(() => {
-    // In a real implementation, this would fetch actual data from the backend
-    setLoading(false);
-    
-    // This is a placeholder - in a real implementation, 
-    // you would fetch these values from API endpoints
-    // For now, we're setting them to 0 as requested
-    setStats({
-      pendingTests: 0,
-      inventoryItems: 0,
-      activeUsers: 0
-    });
-    
-    // Setting an empty array for activities as requested
+    // Future enhancement: Fetch recent activities from an API endpoint
     setRecentActivities([]);
   }, []);
 
@@ -104,7 +125,7 @@ const Dashboard: React.FC = () => {
             value={stats.pendingTests}
             icon={<AssignmentIcon />}
             color="#ff9800"
-            loading={loading}
+            loading={isLoading}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
@@ -113,7 +134,7 @@ const Dashboard: React.FC = () => {
             value={stats.inventoryItems}
             icon={<InventoryIcon />}
             color="#2196f3"
-            loading={loading}
+            loading={isLoading}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
@@ -122,7 +143,7 @@ const Dashboard: React.FC = () => {
             value={stats.activeUsers}
             icon={<PeopleIcon />}
             color="#9c27b0"
-            loading={loading}
+            loading={isLoading}
           />
         </Grid>
       </Grid>

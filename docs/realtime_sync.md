@@ -50,7 +50,7 @@ When setting up FreeLIMS for a new employee:
    ```
 3. Run the application using:
    ```bash
-   ./scripts/freelims.sh prod start
+   ./freelims.sh prod start
    ```
 
 The employee's application will automatically connect to the central database and WebSocket server, ensuring they see the same data as everyone else.

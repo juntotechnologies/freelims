@@ -132,6 +132,8 @@ class InventoryChange(Base, ModelMixin):
     reason = Column(String)
     experiment_id = Column(Integer, ForeignKey("experiments.id"), nullable=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    supplier = Column(String, nullable=True)  # New field to track the supplier for acquisitions
+    acquisition_date = Column(DateTime, nullable=True)  # New field to track when the chemical was acquired
 
     # Relationships
     inventory_item = relationship("InventoryItem", back_populates="inventory_changes")

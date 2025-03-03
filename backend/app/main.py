@@ -20,6 +20,7 @@ from app.routers.users import router as users_router
 from app.routers.settings import router as settings_router
 from app.routers.tests import router as tests_router
 from app.routers.locations import router as locations_router
+from app.routers.dashboard import router as dashboard_router
 from app.websockets import setup_socketio  # Import WebSocket setup function
 
 # Create database tables
@@ -62,6 +63,7 @@ app.include_router(experiments_router, prefix="/api/experiments", tags=["Experim
 app.include_router(settings_router, prefix="/api/settings", tags=["Settings"])
 app.include_router(tests_router)
 app.include_router(locations_router, prefix="/api/locations", tags=["Locations"])
+app.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
 
 # Setup WebSockets
 setup_socketio(app)

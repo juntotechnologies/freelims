@@ -264,6 +264,9 @@ async def create_inventory_change(
 ):
     """
     Record an inventory change (consumption or addition).
+    
+    - For additions: positive change_amount, optional supplier and acquisition_date
+    - For usage/consumption: negative change_amount, reason required
     """
     # Check if inventory item exists
     db_item = db.query(InventoryItemModel).filter(InventoryItemModel.id == change.inventory_item_id).first()
@@ -280,13 +283,15 @@ async def create_inventory_change(
     old_quantity = db_item.quantity
     new_quantity = db_item.quantity + change.change_amount
     
-    # Create inventory change record
+    # Create inventory change record with supplier and acquisition date if provided
     db_change = InventoryChangeModel(
         inventory_item_id=change.inventory_item_id,
         user_id=current_user.id,
         change_amount=change.change_amount,
         reason=change.reason,
-        experiment_id=change.experiment_id
+        experiment_id=change.experiment_id,
+        supplier=change.supplier,
+        acquisition_date=change.acquisition_date
     )
     db.add(db_change)
     
@@ -364,4 +369,24 @@ async def read_inventory_audit_logs(
         query = query.filter(InventoryAuditModel.action == action)
     
     audit_logs = query.order_by(InventoryAuditModel.timestamp.desc()).offset(skip).limit(limit).all()
-    return audit_logs 
+    return audit_logs
+
+@router.get("/acquisitions", response_model=List[InventoryChange])
+async def read_inventory_acquisitions(
+    skip: int = 0,
+    limit: int = 100,
+    inventory_item_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """
+    Get inventory acquisition history with optional filtering.
+    Only returns positive change records (additions to inventory).
+    """
+    query = db.query(InventoryChangeModel).filter(InventoryChangeModel.change_amount > 0)
+    
+    if inventory_item_id:
+        query = query.filter(InventoryChangeModel.inventory_item_id == inventory_item_id)
+    
+    acquisitions = query.order_by(InventoryChangeModel.timestamp.desc()).offset(skip).limit(limit).all()
+    return acquisitions 

@@ -5,6 +5,12 @@
 # This script handles system operations (start, stop, restart)
 # ----------------------------------------------------------------------------
 
+# Source the Git environment selector
+UTILS_DIR="$REPO_ROOT/scripts/utils"
+if [ -f "$UTILS_DIR/git_env_selector.sh" ]; then
+    source "$UTILS_DIR/git_env_selector.sh"
+fi
+
 # Source port configuration if not already sourced
 if [ "$(type -t get_process_on_port)" != "function" ]; then
     if [ -f "$REPO_ROOT/port_config.sh" ]; then
@@ -38,6 +44,23 @@ log() {
     local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
     echo -e "[$timestamp] $message"
     echo "[$timestamp] $message" >> "$SYSTEM_LOG"
+}
+
+# Auto-select environment based on git branch
+auto_select_environment() {
+    # Check if git_env_selector.sh was sourced successfully
+    if [ "$(type -t select_environment)" != "function" ]; then
+        log "Git environment selector not available. Defaulting to manual selection."
+        return 1
+    fi
+    
+    local current_branch=$(get_current_branch)
+    local env=$(select_environment)
+    
+    log "Auto-detected Git branch: $current_branch, selecting environment: $env"
+    echo -e "${GREEN}Auto-detected Git branch: $current_branch, using $env environment${NC}"
+    
+    return 0
 }
 
 # Start the development environment
@@ -371,6 +394,16 @@ manage_system() {
     local environment=$1
     local command=$2
     shift 2
+    
+    # Auto-detect environment if "auto" is specified
+    if [ "$environment" == "auto" ]; then
+        if auto_select_environment; then
+            environment=$(select_environment)
+        else
+            echo "Error: Could not auto-detect environment. Please specify 'dev' or 'prod'."
+            return 1
+        fi
+    fi
     
     case "$environment" in
         dev)

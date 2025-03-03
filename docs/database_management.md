@@ -258,7 +258,8 @@ To configure a new employee's access:
    ```
 4. Run the application using:
    ```bash
-   ./scripts/freelims.sh prod start
+   # Start the FreeLIMS system
+   ./freelims.sh prod start
    ```
 
 This ensures all employees work with the same central database while maintaining proper data separation between environments.
