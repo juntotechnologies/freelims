@@ -107,6 +107,14 @@ frontend/node_modules/.cache/
 *.sql
 *.dump
 
+# Database backups - explicitly excluded
+# -----------------------------------------------------------------------------
+db_backups/
+*_backup*.sql
+*_backup_*.sql
+freelims_prod_backup_*.sql
+freelims_dev_backup_*.sql
+
 # Sensitive information
 # -----------------------------------------------------------------------------
 **/*.pem
