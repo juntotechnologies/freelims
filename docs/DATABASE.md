@@ -4,23 +4,31 @@ This guide provides information about the database structure, configuration, and
 
 ## Database Configuration
 
-FreeLIMS uses PostgreSQL as its database backend, with the database schema stored in a specified location on disk. This design allows multiple computers to access the same database files through a shared network drive.
+FreeLIMS uses PostgreSQL as its database backend, with the database schema stored in a specified location on disk. The database is now stored on the Mac Mini's local storage for improved security and performance.
 
 ### Configuration Settings
 
-The database configuration is stored in the `backend/.env` file:
+The database configuration is stored in the environment files:
 
 ```
-# Database settings
+# Production database settings (backend/.env.production)
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=freelims
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_SCHEMA_PATH=/Users/Shared/ADrive/freelims_db
+DB_USER=shaun
+DB_PASSWORD=
+DB_SCHEMA_PATH=/Users/Shared/FreeLIMS/production
+
+# Development database settings (backend/.env.development)
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=freelims_dev
+DB_USER=shaun
+DB_PASSWORD=
+DB_SCHEMA_PATH=/Users/Shared/FreeLIMS/development
 ```
 
-- `DB_HOST`: The hostname where PostgreSQL is running (typically localhost for development)
+- `DB_HOST`: The hostname where PostgreSQL is running (typically localhost)
 - `DB_PORT`: The port PostgreSQL is listening on (default: 5432)
 - `DB_NAME`: The name of the database to use
 - `DB_USER`: The PostgreSQL user with access to the database
@@ -29,26 +37,30 @@ DB_SCHEMA_PATH=/Users/Shared/ADrive/freelims_db
 
 ## Database Location
 
-FreeLIMS is designed to store its database files in a shared network location. This allows multiple users to access the same database from different computers.
+FreeLIMS now stores its database files on the Mac Mini's internal storage for improved security. The database is located at:
 
-### Shared Drive Setup
-
-The database can be stored in one of two locations:
-
-1. **SDrive**: `/Users/Shared/SDrive/freelims_db`
-2. **ADrive**: `/Users/Shared/ADrive/freelims_db`
-
-The current configuration uses ADrive for database storage.
+- PostgreSQL data directory: `/Users/Shared/FreeLIMS/postgres_data`
+- Development schema: `/Users/Shared/FreeLIMS/development`
+- Production schema: `/Users/Shared/FreeLIMS/production`
+- Backup files: `/Users/Shared/FreeLIMS/backups/`
 
 ### Permissions
 
-The database directory requires specific permissions to work correctly:
+The database directories have restricted permissions to maintain security:
 
 ```bash
-sudo chmod -R 777 /Users/Shared/ADrive/freelims_db
+# Directory permissions (700) - only owner can access
+chmod 700 /Users/Shared/FreeLIMS/postgres_data
+chmod 700 /Users/Shared/FreeLIMS/development
+chmod 700 /Users/Shared/FreeLIMS/production
+chmod 700 /Users/Shared/FreeLIMS/backups
+
+# Backup file permissions (600) - only owner can read/write
+chmod 600 /Users/Shared/FreeLIMS/backups/production/*.sql
+chmod 600 /Users/Shared/FreeLIMS/backups/development/*.sql
 ```
 
-This grants full read, write, and execute permissions to all users. While not ideal for security, this ensures that all users can access the database files without permission issues.
+These restricted permissions ensure that only the authorized user can access the database files.
 
 ## Database Schema
 

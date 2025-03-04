@@ -50,12 +50,12 @@ frontend/build/
 # Environment and Configuration
 # -----------------------------------------------------------------------------
 .env
-.env.local
-.env.development
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
 *.env
+backend/.env*
+backend/*.env
+backend/.env.production
+backend/.env.development
 auth.json
 
 # Logs and Debugging
@@ -106,6 +106,14 @@ frontend/node_modules/.cache/
 *.sqlite3
 *.sql
 *.dump
+
+# Database backups - explicitly excluded
+# -----------------------------------------------------------------------------
+db_backups/
+*_backup*.sql
+*_backup_*.sql
+freelims_prod_backup_*.sql
+freelims_dev_backup_*.sql
 
 # Sensitive information
 # -----------------------------------------------------------------------------
@@ -166,10 +174,12 @@ backups/
 # -----------------------------------------------------------------------------
 # Note: Consider if these are really needed or too broad
 # Local paths
-# **/Users/shaun/**  # Commented out - too broad
-# **/Users/Shared/** # Commented out - too broad
-# **/SDrive/**       # Only if needed
-# **/ADrive/**       # Only if needed
+**/Users/shaun/**
+**/Users/Shared/**
+**/SDrive/**
+**/ADrive/**
+**/CIT-MacMini*
+**/cit-office*
 
 # Local network information - likely not needed for most users
 # **/192.168.*
@@ -178,4 +188,28 @@ backups/
 
 # Environment-specific configuration
 # **/CIT-MacMini*
-# **/cit-office* 
+# **/cit-office*
+
+# Backup files and directories
+/backups/
+/script_backups/
+*_backup*/
+*.bak
+*.dump
+*.dump.meta
+
+# User-specific paths and sensitive information
+# -----------------------------------------------------------------------------
+**/Users/shaun/**
+**/Users/Shared/**
+**/SDrive/**
+**/ADrive/**
+**/CIT-MacMini*
+**/cit-office*
+
+# Service and launch daemon files
+# -----------------------------------------------------------------------------
+*.service
+*.plist
+!templates/services/*.service.example
+!templates/services/*.plist.example 

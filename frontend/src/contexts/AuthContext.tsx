@@ -8,10 +8,9 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8001/api';
 export interface User {
   id: number;
   email: string;
-  username: string;
   full_name: string;
   is_active: boolean;
-  is_admin: boolean;
+  is_superuser: boolean;
 }
 
 // Define auth context type
@@ -28,6 +27,17 @@ interface AuthContextType {
 interface TokenResponse {
   access_token: string;
   token_type: string;
+}
+
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+interface RegisterData {
+  email: string;
+  full_name: string;
+  password: string;
 }
 
 // Create context
