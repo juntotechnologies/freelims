@@ -4,10 +4,6 @@ import AuthLayout from './components/layouts/AuthLayout';
 import DashboardLayout from './components/layouts/DashboardLayout';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import TestManagement from './pages/TestManagement';
-import Users from './pages/Users';
-import Settings from './pages/Settings';
 import Inventory from './pages/Inventory';
 import LocationAuditLogs from './pages/LocationAuditLogs';
 import NotFound from './pages/NotFound';
@@ -24,12 +20,12 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-// Public route wrapper component (redirects to dashboard if already authenticated)
+// Public route wrapper component (redirects to inventory if already authenticated)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
   
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" />;
+    return <Navigate to="/inventory" />;
   }
   
   return <>{children}</>;
@@ -39,7 +35,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const routes: RouteObject[] = [
   {
     path: '/',
-    element: <Navigate to="/dashboard" />,
+    element: <Navigate to="/inventory" />,
   },
   {
     path: '/',
@@ -72,24 +68,8 @@ const routes: RouteObject[] = [
     ),
     children: [
       {
-        path: 'dashboard',
-        element: <Dashboard />,
-      },
-      {
         path: 'inventory',
         element: <Inventory />,
-      },
-      {
-        path: 'tests',
-        element: <TestManagement />,
-      },
-      {
-        path: 'users',
-        element: <Users />,
-      },
-      {
-        path: 'settings',
-        element: <Settings />,
       },
       {
         path: 'audit/locations',

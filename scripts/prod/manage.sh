@@ -309,6 +309,12 @@ start_backend() {
         return 1
     fi
     
+    # Run the setup-env.py script to create the .env files from the root .env file
+    log_info "Setting up environment from root .env file..." "${LOG_FILE}"
+    (cd "${BACKEND_DIR}" && \
+     source "${VENV_DIR}/bin/activate" && \
+     python scripts/setup-env.py)
+    
     # Activate virtual environment and start backend
     (cd "${BACKEND_DIR}" && \
      source "${VENV_DIR}/bin/activate" && \
@@ -345,6 +351,11 @@ start_frontend() {
         log_error "npx command not found. Make sure npm is properly installed" "${LOG_FILE}"
         return 1
     fi
+    
+    # Run the setup-env.js script to create the .env.local file from the root .env file
+    log_info "Setting up environment from root .env file..." "${LOG_FILE}"
+    (cd "${FRONTEND_DIR}" && \
+     node scripts/setup-env.js)
     
     (cd "${FRONTEND_DIR}" && \
      npx serve -s build -p "${FRONTEND_PORT}" > "${LOGS_DIR}/frontend_prod.log" 2>&1) &

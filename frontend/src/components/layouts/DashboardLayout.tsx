@@ -21,13 +21,7 @@ import {
 } from '@mui/material';
 import {
   Menu as MenuIcon,
-  Dashboard as DashboardIcon,
-  Science as ScienceIcon,
   Inventory as InventoryIcon,
-  Assignment as AssignmentIcon,
-  VerifiedUser as VerifiedUserIcon,
-  People as PeopleIcon,
-  Settings as SettingsIcon,
   Logout as LogoutIcon,
   History as HistoryIcon,
   ExpandLess,
@@ -45,11 +39,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { text: 'Dashboard', path: '/dashboard', icon: <DashboardIcon /> },
   { text: 'Inventory', path: '/inventory', icon: <InventoryIcon /> },
-  { text: 'Tests', path: '/tests', icon: <AssignmentIcon /> },
-  { text: 'Users', path: '/users', icon: <PeopleIcon /> },
-  { text: 'Settings', path: '/settings', icon: <SettingsIcon /> },
 ];
 
 const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
@@ -84,7 +74,7 @@ const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ children })
     <Box>
       <Toolbar>
         <Typography variant="h6" noWrap component="div">
-          FreeLIMS
+          FreeLIMS Inventory
         </Typography>
       </Toolbar>
       <Divider />
@@ -155,7 +145,7 @@ const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ children })
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            FreeLIMS
+            FreeLIMS Inventory
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Typography variant="body1" sx={{ mr: 2 }}>

@@ -299,6 +299,12 @@ start_backend() {
         return 1
     fi
     
+    # Run the setup-env.py script to create the .env files from the root .env file
+    log_info "Setting up environment from root .env file..." "${LOG_FILE}"
+    (cd "${BACKEND_DIR}" && \
+     source "${VENV_DIR}/bin/activate" && \
+     python scripts/setup-env.py)
+    
     # Activate virtual environment and start backend
     (cd "${BACKEND_DIR}" && \
      source "${VENV_DIR}/bin/activate" && \
@@ -326,6 +332,7 @@ start_frontend() {
     fi
     
     # Start frontend development server
+    # The prestart script in package.json will run setup-env.js to create the .env.local file from the root .env file
     (cd "${FRONTEND_DIR}" && \
      PORT="${FRONTEND_PORT}" npm start > "${LOGS_DIR}/frontend_dev.log" 2>&1) &
     

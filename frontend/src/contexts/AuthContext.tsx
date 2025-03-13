@@ -11,6 +11,8 @@ export interface User {
   full_name: string;
   is_active: boolean;
   is_superuser: boolean;
+  username?: string;  // Adding optional username property
+  is_admin?: boolean; // Adding optional is_admin property
 }
 
 // Define auth context type
