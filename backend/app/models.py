@@ -25,21 +25,6 @@ chemical_category = Table(
     Column('category_id', Integer, ForeignKey('categories.id'))
 )
 
-experiment_chemical = Table(
-    'experiment_chemical',
-    Base.metadata,
-    Column('experiment_id', Integer, ForeignKey('experiments.id')),
-    Column('chemical_id', Integer, ForeignKey('chemicals.id'))
-)
-
-# Association table for test and analysts (many-to-many)
-test_analyst = Table(
-    'test_analyst',
-    Base.metadata,
-    Column('test_id', Integer, ForeignKey('tests.id')),
-    Column('user_id', Integer, ForeignKey('users.id'))
-)
-
 class User(Base, ModelMixin):
     __tablename__ = "users"
 
@@ -54,11 +39,8 @@ class User(Base, ModelMixin):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    experiments = relationship("Experiment", back_populates="user")
     inventory_changes = relationship("InventoryChange", back_populates="user")
     inventory_audits = relationship("InventoryAudit", back_populates="user")
-    settings_updates = relationship("SystemSettings", back_populates="updated_by")
-    tests_as_analyst = relationship("Test", secondary=test_analyst, back_populates="analysts")
     chemical_audits = relationship("ChemicalAudit", back_populates="user")
     location_audits = relationship("LocationAudit", back_populates="user")
 
@@ -79,7 +61,6 @@ class Chemical(Base, ModelMixin):
     # Relationships
     inventory_items = relationship("InventoryItem", back_populates="chemical")
     categories = relationship("Category", secondary=chemical_category, back_populates="chemicals")
-    experiments = relationship("Experiment", secondary=experiment_chemical, back_populates="chemicals")
     audit_logs = relationship("ChemicalAudit", back_populates="chemical")
 
 class Category(Base, ModelMixin):
@@ -113,6 +94,8 @@ class InventoryItem(Base, ModelMixin):
     unit = Column(String)
     batch_number = Column(String, index=True)
     expiration_date = Column(DateTime)
+    supplier = Column(String, nullable=True)
+    acquisition_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -130,15 +113,13 @@ class InventoryChange(Base, ModelMixin):
     user_id = Column(Integer, ForeignKey("users.id"))
     change_amount = Column(Float)
     reason = Column(String)
-    experiment_id = Column(Integer, ForeignKey("experiments.id"), nullable=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    supplier = Column(String, nullable=True)  # New field to track the supplier for acquisitions
-    acquisition_date = Column(DateTime, nullable=True)  # New field to track when the chemical was acquired
+    supplier = Column(String, nullable=True)
+    acquisition_date = Column(DateTime, nullable=True)
 
     # Relationships
     inventory_item = relationship("InventoryItem", back_populates="inventory_changes")
     user = relationship("User", back_populates="inventory_changes")
-    experiment = relationship("Experiment", back_populates="inventory_changes")
 
 class InventoryAudit(Base, ModelMixin):
     __tablename__ = "inventory_audits"
@@ -156,79 +137,7 @@ class InventoryAudit(Base, ModelMixin):
     inventory_item = relationship("InventoryItem", back_populates="audit_logs")
     user = relationship("User", back_populates="inventory_audits")
 
-class Experiment(Base, ModelMixin):
-    __tablename__ = "experiments"
-
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
-    description = Column(Text)
-    procedure = Column(Text)
-    results = Column(Text)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    status = Column(String)  # planned, in-progress, completed, failed
-    start_date = Column(DateTime)
-    end_date = Column(DateTime, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    # Relationships
-    user = relationship("User", back_populates="experiments")
-    chemicals = relationship("Chemical", secondary=experiment_chemical, back_populates="experiments")
-    inventory_changes = relationship("InventoryChange", back_populates="experiment")
-    notes = relationship("ExperimentNote", back_populates="experiment")
-
-class ExperimentNote(Base, ModelMixin):
-    __tablename__ = "experiment_notes"
-
-    id = Column(Integer, primary_key=True, index=True)
-    experiment_id = Column(Integer, ForeignKey("experiments.id"))
-    content = Column(Text)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
-
-    # Relationships
-    experiment = relationship("Experiment", back_populates="notes")
-
-class SystemSettings(Base, ModelMixin):
-    __tablename__ = "system_settings"
-
-    id = Column(Integer, primary_key=True, index=True)
-    company_name = Column(String, default="FreeLIMS")
-    system_email = Column(String)
-    backup_enabled = Column(Boolean, default=True)
-    backup_frequency = Column(String, default="daily")
-    backup_location = Column(String, default="/backup")
-    email_notifications = Column(Boolean, default=True)
-    auto_logout = Column(Integer, default=30)  # minutes
-    password_expiry = Column(Integer, default=90)  # days
-    require_two_factor = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    updated_by_id = Column(Integer, ForeignKey("users.id"))
-
-    # Relationships
-    updated_by = relationship("User", back_populates="settings_updates")
-
-class Test(Base, ModelMixin):
-    __tablename__ = "tests"
-
-    id = Column(Integer, primary_key=True, index=True)
-    internal_id = Column(String, unique=True, index=True)
-    test_id = Column(String, index=True)
-    sample_id = Column(String, index=True)
-    test_type = Column(String)  # HPLC, GC, Titration, IR, NMR
-    method = Column(String)
-    status = Column(String)  # Pending, In Progress, Completed, Failed
-    start_date = Column(DateTime(timezone=True))
-    test_date = Column(DateTime(timezone=True))
-    completion_date = Column(DateTime(timezone=True), nullable=True)
-    results = Column(Text)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
-    # Relationships
-    analysts = relationship("User", secondary=test_analyst, back_populates="tests_as_analyst")
-
-# New audit tables for chemicals and locations
+# Audit tables for chemicals and locations
 class ChemicalAudit(Base, ModelMixin):
     __tablename__ = "chemical_audits"
 

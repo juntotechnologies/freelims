@@ -7,7 +7,6 @@ from ..database import get_db
 from ..schemas import InventoryItem, InventoryItemCreate, InventoryItemUpdate, InventoryChange, InventoryChangeCreate, InventoryAudit, InventoryAuditCreate
 from ..models import InventoryItem as InventoryItemModel, InventoryChange as InventoryChangeModel, Chemical as ChemicalModel, Location as LocationModel, InventoryAudit as InventoryAuditModel
 from ..auth import get_current_active_user, get_current_user
-from ..websockets import notify_clients  # Import the notify_clients function
 
 router = APIRouter()
 
@@ -37,7 +36,9 @@ async def create_inventory_item(
         quantity=item.quantity,
         unit=item.unit,
         batch_number=item.batch_number,
-        expiration_date=item.expiration_date
+        expiration_date=item.expiration_date,
+        supplier=item.supplier,
+        acquisition_date=item.acquisition_date
     )
     db.add(db_item)
     db.commit()
@@ -48,7 +49,9 @@ async def create_inventory_item(
         inventory_item_id=db_item.id,
         user_id=current_user.id,
         change_amount=item.quantity,
-        reason="Initial inventory creation"
+        reason="Initial inventory creation",
+        supplier=item.supplier,
+        acquisition_date=item.acquisition_date
     )
     db.add(inventory_change)
     
@@ -63,9 +66,6 @@ async def create_inventory_item(
     )
     db.add(audit_record)
     db.commit()
-    
-    # Notify all connected clients about the new inventory item
-    await notify_clients('inventory', 'create', db_item.as_dict())
     
     return db_item
 
@@ -221,6 +221,38 @@ async def update_inventory_item(
         # Update the field
         db_item.unit = item.unit
     
+    # Update supplier if changed
+    if item.supplier is not None and item.supplier != db_item.supplier:
+        # Create audit record for supplier change
+        audit_record = InventoryAuditModel(
+            inventory_item_id=db_item.id,
+            user_id=current_user.id,
+            field_name="supplier",
+            old_value=db_item.supplier or "",
+            new_value=item.supplier,
+            action="UPDATE"
+        )
+        db.add(audit_record)
+        
+        # Update the field
+        db_item.supplier = item.supplier
+    
+    # Update acquisition date if changed
+    if item.acquisition_date is not None and item.acquisition_date != db_item.acquisition_date:
+        # Create audit record for acquisition date change
+        audit_record = InventoryAuditModel(
+            inventory_item_id=db_item.id,
+            user_id=current_user.id,
+            field_name="acquisition_date",
+            old_value=str(db_item.acquisition_date) if db_item.acquisition_date else "",
+            new_value=str(item.acquisition_date),
+            action="UPDATE"
+        )
+        db.add(audit_record)
+        
+        # Update the field
+        db_item.acquisition_date = item.acquisition_date
+    
     # Handle quantity change separately to create a change record
     if item.quantity is not None and item.quantity != db_item.quantity:
         change_amount = item.quantity - db_item.quantity
@@ -251,10 +283,37 @@ async def update_inventory_item(
     db.commit()
     db.refresh(db_item)
     
-    # Notify all connected clients about the updated inventory item
-    await notify_clients('inventory', 'update', db_item.as_dict())
-    
     return db_item
+
+@router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_inventory_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """
+    Delete an inventory item by ID.
+    """
+    db_item = db.query(InventoryItemModel).filter(InventoryItemModel.id == item_id).first()
+    if db_item is None:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+    
+    # Create audit record for the deletion
+    audit_record = InventoryAuditModel(
+        inventory_item_id=db_item.id,
+        user_id=current_user.id,
+        field_name="all",
+        old_value=f"Chemical ID: {db_item.chemical_id}, Location ID: {db_item.location_id}, Quantity: {db_item.quantity}, Unit: {db_item.unit}",
+        new_value="",
+        action="DELETE"
+    )
+    db.add(audit_record)
+    
+    # Delete the item
+    db.delete(db_item)
+    db.commit()
+    
+    return None
 
 @router.post("/changes", response_model=InventoryChange, status_code=status.HTTP_201_CREATED)
 async def create_inventory_change(
@@ -263,65 +322,40 @@ async def create_inventory_change(
     current_user = Depends(get_current_user)
 ):
     """
-    Record an inventory change (consumption or addition).
-    
-    - For additions: positive change_amount, optional supplier and acquisition_date
-    - For usage/consumption: negative change_amount, reason required
+    Create a new inventory change record.
     """
     # Check if inventory item exists
-    db_item = db.query(InventoryItemModel).filter(InventoryItemModel.id == change.inventory_item_id).first()
-    if db_item is None:
+    inventory_item = db.query(InventoryItemModel).filter(InventoryItemModel.id == change.inventory_item_id).first()
+    if not inventory_item:
         raise HTTPException(status_code=404, detail="Inventory item not found")
     
-    # Check if experiment exists if provided
-    if change.experiment_id:
-        experiment = db.query(ExperimentModel).filter(ExperimentModel.id == change.experiment_id).first()
-        if not experiment:
-            raise HTTPException(status_code=404, detail="Experiment not found")
-    
-    # Record old quantity before change
-    old_quantity = db_item.quantity
-    new_quantity = db_item.quantity + change.change_amount
-    
-    # Create inventory change record with supplier and acquisition date if provided
+    # Create new inventory change record
     db_change = InventoryChangeModel(
         inventory_item_id=change.inventory_item_id,
         user_id=current_user.id,
         change_amount=change.change_amount,
         reason=change.reason,
-        experiment_id=change.experiment_id,
         supplier=change.supplier,
         acquisition_date=change.acquisition_date
     )
     db.add(db_change)
     
+    # Update inventory item quantity
+    inventory_item.quantity += change.change_amount
+    
     # Create audit record for the quantity change
     audit_record = InventoryAuditModel(
-        inventory_item_id=db_item.id,
+        inventory_item_id=inventory_item.id,
         user_id=current_user.id,
         field_name="quantity",
-        old_value=str(old_quantity),
-        new_value=str(new_quantity),
+        old_value=str(inventory_item.quantity - change.change_amount),
+        new_value=str(inventory_item.quantity),
         action="UPDATE"
     )
     db.add(audit_record)
     
-    # Update inventory quantity
-    db_item.quantity = new_quantity
-    
-    # Check if quantity is negative
-    if db_item.quantity < 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inventory quantity cannot be negative"
-        )
-    
     db.commit()
     db.refresh(db_change)
-    db.refresh(db_item)  # Refresh the item to get updated quantity
-    
-    # Notify all connected clients about the inventory change
-    await notify_clients('inventory', 'update', db_item.as_dict())
     
     return db_change
 
@@ -334,7 +368,7 @@ async def read_inventory_changes(
     current_user = Depends(get_current_active_user)
 ):
     """
-    Get inventory changes with optional filtering.
+    Get all inventory changes with optional filtering.
     """
     query = db.query(InventoryChangeModel)
     
@@ -355,7 +389,7 @@ async def read_inventory_audit_logs(
     current_user = Depends(get_current_active_user)
 ):
     """
-    Get inventory audit logs with optional filtering.
+    Get audit logs for inventory items with optional filtering.
     """
     query = db.query(InventoryAuditModel)
     
@@ -369,24 +403,4 @@ async def read_inventory_audit_logs(
         query = query.filter(InventoryAuditModel.action == action)
     
     audit_logs = query.order_by(InventoryAuditModel.timestamp.desc()).offset(skip).limit(limit).all()
-    return audit_logs
-
-@router.get("/acquisitions", response_model=List[InventoryChange])
-async def read_inventory_acquisitions(
-    skip: int = 0,
-    limit: int = 100,
-    inventory_item_id: Optional[int] = None,
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
-):
-    """
-    Get inventory acquisition history with optional filtering.
-    Only returns positive change records (additions to inventory).
-    """
-    query = db.query(InventoryChangeModel).filter(InventoryChangeModel.change_amount > 0)
-    
-    if inventory_item_id:
-        query = query.filter(InventoryChangeModel.inventory_item_id == inventory_item_id)
-    
-    acquisitions = query.order_by(InventoryChangeModel.timestamp.desc()).offset(skip).limit(limit).all()
-    return acquisitions 
+    return audit_logs 
