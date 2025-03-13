@@ -76,13 +76,6 @@ print_usage() {
     echo "  $0 persistent all monitor # Start monitoring service for all environments"
 }
 
-# Check if port_config.sh exists, source it
-if [ -f "$REPO_ROOT/port_config.sh" ]; then
-    source "$REPO_ROOT/port_config.sh"
-else
-    echo "Warning: port_config.sh not found. Port management will be limited."
-fi
-
 # Create log directory if it doesn't exist
 mkdir -p "$REPO_ROOT/logs"
 
